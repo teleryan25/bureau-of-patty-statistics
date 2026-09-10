@@ -17,35 +17,35 @@
   var K = S.CATEGORY_KEYS;
 
   /* --- the register itself is embarrassing --- */
-  R('ss-single-specimen', 'small-sample', { c: 1, pr: 9, x: 'sample-size' },
+  R('ss-single-establishment', 'small-sample', { c: 1, pr: 9, x: 'sample-size' },
     function (m) { return m.counts.certified === 1; },
     function (m, H) { return { title: 'SAMPLE SIZE ADVISORY', body:
-      'BPS currently possesses one certified specimen. This has not prevented the Office of Auditor Accountability from reaching several conclusions.' }; },
+      'BPS currently possesses one certified establishment. This has not prevented the Office of Auditor Accountability from reaching several conclusions.' }; },
     function (m, H) { return { title: 'STATISTICAL DISCLAIMER', body:
       'All findings below are derived from a single hamburger. The Bureau considers this sufficient and has declined to hear objections.' }; },
     function (m, H) { return { title: 'PRELIMINARY REGISTER NOTICE', body:
-      'The register contains exactly one certified specimen. Every trend identified in this report is, technically speaking, a single data point wearing a trenchcoat.' }; });
+      'The register contains exactly one certified establishment. Every trend identified in this report is, technically speaking, a single data point wearing a trenchcoat.' }; });
 
-  R('ss-two-specimens', 'small-sample', { c: 2, pr: 8, x: 'sample-size' },
+  R('ss-two-establishments', 'small-sample', { c: 2, pr: 8, x: 'sample-size' },
     function (m) { return m.counts.certified === 2; },
     function (m, H) { return { title: 'SAMPLE SIZE ADVISORY', body:
-      'With two certified specimens on file, the Bureau has doubled its evidence base and quadrupled its confidence. Only one of those was justified.' }; },
+      'With two certified establishments on file, the Bureau has doubled its evidence base and quadrupled its confidence. Only one of those was justified.' }; },
     function (m, H) { return { title: 'METHODOLOGICAL NOTE', body:
-      'Two specimens. The Office is now able to draw a straight line through all available data, which it regards as a trend.' }; });
+      'Two establishments. The Office is now able to draw a straight line through all available data, which it regards as a trend.' }; });
 
-  R('ss-three-specimens', 'small-sample', { c: 3, pr: 6, x: 'sample-size' },
+  R('ss-three-establishments', 'small-sample', { c: 3, pr: 6, x: 'sample-size' },
     function (m) { return m.counts.certified === 3; },
     function (m, H) { return { title: 'SAMPLE SIZE ADVISORY', body:
-      'Three certified specimens. The Bureau has begun using the word "pattern" in internal correspondence and no one has stopped it.' }; },
+      'Three certified establishments. The Bureau has begun using the word "pattern" in internal correspondence and no one has stopped it.' }; },
     function (m, H) { return { title: 'THRESHOLD REACHED', body:
-      'At three specimens the Office of Auditor Accountability unlocks its medium-confidence vocabulary. Confidence itself remains unchanged.' }; });
+      'At three establishments the Office of Auditor Accountability unlocks its medium-confidence vocabulary. Confidence itself remains unchanged.' }; });
 
   R('ss-under-five', 'small-sample', { c: 3, pr: 4, x: 'sample-size' },
     function (m) { return m.counts.certified >= 3 && m.counts.certified < 5; },
     function (m, H) { return { title: 'PROVISIONAL METHODOLOGY', body:
-      'The register holds ' + m.counts.certified + ' certified specimens. Statistical convention suggests waiting for more. The Bureau has noted the suggestion.' }; });
+      'The register holds ' + m.counts.certified + ' certified establishments. Statistical convention suggests waiting for more. The Bureau has noted the suggestion.' }; });
 
-  /* --- one-specimen structural findings --- */
+  /* --- one-establishment structural findings --- */
   R('ss1-who-scored-higher', 'small-sample', { c: 1, pr: 8 },
     function (m) { return m.only && m.only.higher !== 'tie'; },
     function (m, H) { var v = m.only, w = v.higher;
@@ -60,7 +60,7 @@
   R('ss1-dead-heat', 'small-sample', { c: 1, pr: 7, r: 'uncommon' },
     function (m) { return m.only && m.only.higher === 'tie'; },
     function (m, H) { return { title: 'INAUGURAL DEADLOCK', body:
-      'On the register\'s only specimen, both auditors produced identical weighted scores. The Bureau has no procedure for this and is proceeding as though it did not happen.' }; });
+      'On the register\'s only establishment, both auditors produced identical weighted scores. The Bureau has no procedure for this and is proceeding as though it did not happen.' }; });
 
   R('ss1-biggest-disagreement', 'small-sample', { c: 1, pr: 7 },
     function (m) { return m.only && gt(m.only.maxAbsDelta, 0.4); },
@@ -78,35 +78,35 @@
     function (m, H) { var v = m.only;
       return { title: 'CONCURRENCE LOGGED', body:
         'The auditors agreed to the decimal in ' + v.exactCells + ' of ' + K.length +
-        ' categories on the register\'s only specimen. The Office regards this as either rigour or collusion.' }; });
+        ' categories on the register\'s only establishment. The Office regards this as either rigour or collusion.' }; });
 
   R('ss1-total-agreement', 'small-sample', { c: 1, pr: 9, r: 'rare' },
     function (m) { return m.only && m.only.exactCells === K.length; },
     function (m, H) { return { title: 'IDENTICAL FILING ALERT', body:
-      'On the register\'s first specimen, Ryan and Devin submitted six identical category scores. The Bureau is required to note that independent auditing was, in theory, occurring.' }; });
+      'On the register\'s first establishment, Ryan and Devin submitted six identical category scores. The Bureau is required to note that independent auditing was, in theory, occurring.' }; });
 
   R('ss1-sweep', 'small-sample', { c: 1, pr: 8 },
     function (m) { return m.only && m.only.sweep; },
     function (m, H) { var v = m.only, w = v.sweep;
       return { title: 'CLEAN SWEEP RECORDED', body:
-        H.name(w) + ' scored higher than ' + H.other(w) + ' in all six categories on the register\'s only specimen. ' +
+        H.name(w) + ' scored higher than ' + H.other(w) + ' in all six categories on the register\'s only establishment. ' +
         'The Office has flagged this as either enthusiasm or a systematic calibration difference, and cannot yet tell which.' }; },
     function (m, H) { var v = m.only, w = v.sweep;
       return { title: 'UNANIMOUS DIFFERENTIAL', body:
-        'Every single category: ' + H.name(w) + ' higher. Six for six. The Bureau notes that with one specimen this proves nothing, and has recorded it as proof anyway.' }; });
+        'Every single category: ' + H.name(w) + ' higher. Six for six. The Bureau notes that with one establishment this proves nothing, and has recorded it as proof anyway.' }; });
 
   R('ss1-strongest-category', 'small-sample', { c: 1, pr: 6 },
     function (m) { return m.only && m.only.best.combined; },
     function (m, H) { var v = m.only, c = v.best.combined;
       return { title: 'CATEGORY FINDING', body:
-        H.cat(c) + ' is the strongest attribute of the register\'s only specimen, at a combined ' + H.n1(v.combined[c]) +
+        H.cat(c) + ' is the strongest attribute of the register\'s only establishment, at a combined ' + H.n1(v.combined[c]) +
         '. It is therefore also the strongest ' + H.lcat(c) + ' in Bureau history.' }; });
 
   R('ss1-weakest-category', 'small-sample', { c: 1, pr: 6 },
     function (m) { return m.only && m.only.worst.combined; },
     function (m, H) { var v = m.only, c = v.worst.combined;
       return { title: 'DEFICIENCY NOTED', body:
-        H.cat(c) + ' scored lowest on the register\'s only specimen (' + H.n1(v.combined[c]) +
+        H.cat(c) + ' scored lowest on the register\'s only establishment (' + H.n1(v.combined[c]) +
         '). By an unavoidable quirk of arithmetic it is simultaneously the best and worst ' + H.lcat(c) + ' ever recorded.' }; });
 
   R('ss1-flat-scoring', 'small-sample', { c: 1, pr: 6 },
@@ -134,7 +134,7 @@
       var who = K.some(function (c) { return Number(v.scores.ryan[c]) === 10; }) ? 'ryan' : 'devin';
       var cat = K.filter(function (c) { return Number(v.scores[who][c]) === 10; })[0];
       return { title: 'MAXIMUM SCORE ISSUED', body:
-        H.name(who) + ' awarded a 10.0 for ' + H.cat(cat) + ' on the first certified specimen in Bureau history. ' +
+        H.name(who) + ' awarded a 10.0 for ' + H.cat(cat) + ' on the first certified establishment in Bureau history. ' +
         'There is now nowhere left to go and ' + H.name(who) + ' has been informed.' }; });
 
   R('ss1-used-below-five', 'small-sample', { c: 1, pr: 7 },
@@ -147,13 +147,13 @@
       var cat = K.filter(function (c) { return Number(v.scores[who][c]) < 5; })[0];
       return { title: 'ADVERSE FINDING', body:
         H.name(who) + ' issued a ' + H.n1(v.scores[who][cat]) + ' for ' + H.cat(cat) +
-        ' on the Bureau\'s inaugural specimen. A bold opening statement.' }; });
+        ' on the Bureau\'s inaugural establishment. A bold opening statement.' }; });
 
   R('ss1-strong-consensus', 'small-sample', { c: 1, pr: 7 },
     function (m) { return m.only && lt(m.only.meanAbsDelta, 0.25); },
     function (m, H) { var v = m.only;
       return { title: 'SUSPICIOUS HARMONY', body:
-        'Mean disagreement on the register\'s only specimen: ' + H.n2(v.meanAbsDelta) +
+        'Mean disagreement on the register\'s only establishment: ' + H.n2(v.meanAbsDelta) +
         ' points. The auditors are either extremely well calibrated or were sitting close enough to see each other\'s phone.' }; });
 
   R('ss1-strong-dissent', 'small-sample', { c: 1, pr: 8 },
@@ -161,48 +161,48 @@
     function (m, H) { var v = m.only;
       return { title: 'INAUGURAL DISPUTE', body:
         'Mean category disagreement of ' + H.n2(v.meanAbsDelta) +
-        ' points on the very first certified specimen. The Bureau has scheduled a hearing and cancelled it.' }; });
+        ' points on the very first certified establishment. The Bureau has scheduled a hearing and cancelled it.' }; });
 
   R('ss1-patty-vs-fries', 'small-sample', { c: 1, pr: 5 },
     function (m) { return m.only && num(m.only.combined.patty) && num(m.only.combined.fries) && Math.abs(m.only.combined.patty - m.only.combined.fries) >= 1.5; },
     function (m, H) { var v = m.only, d = v.combined.patty - v.combined.fries;
       return d > 0
         ? { title: 'ACCOMPANIMENT DEFICIT', body: 'The patty outscores the fries by ' + H.n1(d) + ' points. The Bureau has, from a standing start, identified a systemic weakness in the side-order sector.' }
-        : { title: 'SIDE-ORDER SUPREMACY', body: 'The fries outscore the patty by ' + H.abs1(d) + ' points on the register\'s only specimen. Investigators are asking what, exactly, is being sold here.' }; });
+        : { title: 'SIDE-ORDER SUPREMACY', body: 'The fries outscore the patty by ' + H.abs1(d) + ' points on the register\'s only establishment. Investigators are asking what, exactly, is being sold here.' }; });
 
   R('ss1-bun-vs-patty', 'small-sample', { c: 1, pr: 5 },
     function (m) { return m.only && num(m.only.combined.bun) && num(m.only.combined.patty) && m.only.combined.bun > m.only.combined.patty; },
     function (m, H) { var v = m.only;
       return { title: 'STRUCTURAL ANOMALY', body:
         'The bun (' + H.n1(v.combined.bun) + ') outscored the patty (' + H.n1(v.combined.patty) +
-        ') on the Bureau\'s first specimen. The Office considers this the wrong way round and has said so in writing.' }; });
+        ') on the Bureau\'s first establishment. The Office considers this the wrong way round and has said so in writing.' }; });
 
   R('ss1-value-vs-flavor', 'small-sample', { c: 1, pr: 5 },
     function (m) { return m.only && num(m.only.combined.value) && num(m.only.combined.overallFlavor) && Math.abs(m.only.combined.value - m.only.combined.overallFlavor) >= 1.2; },
     function (m, H) { var v = m.only, d = v.combined.value - v.combined.overallFlavor;
       return d > 0
-        ? { title: 'ECONOMIC FINDING', body: 'Value exceeds Overall Flavor by ' + H.n1(d) + ' points. The specimen is, in the Bureau\'s assessment, cheap rather than good.' }
+        ? { title: 'ECONOMIC FINDING', body: 'Value exceeds Overall Flavor by ' + H.n1(d) + ' points. The establishment is, in the Bureau\'s assessment, cheap rather than good.' }
         : { title: 'PRICING CONCERN', body: 'Overall Flavor exceeds Value by ' + H.abs1(d) + ' points. Delicious, and the auditors would like someone to know they noticed the bill.' }; });
 
   R('ss1-turnaround-fast', 'small-sample', { c: 1, pr: 6 },
     function (m) { return m.only && num(m.only.turnaroundMs) && m.only.turnaroundMs < 7200000; },
     function (m, H) { var v = m.only;
       return { title: 'PROCEDURAL EFFICIENCY', body:
-        'Peer review of the register\'s first specimen was completed in ' + H.hours(v.turnaroundMs) +
+        'Peer review of the register\'s first establishment was completed in ' + H.hours(v.turnaroundMs) +
         '. The Bureau notes this pace and expects it never to recur.' }; });
 
   R('ss1-turnaround-slow', 'small-sample', { c: 1, pr: 6 },
     function (m) { return m.only && num(m.only.turnaroundMs) && m.only.turnaroundMs > 3 * 86400000; },
     function (m, H) { var v = m.only;
       return { title: 'DELAY ON RECORD', body:
-        'The Bureau\'s first specimen waited ' + H.days(v.turnaroundMs) +
+        'The Bureau\'s first establishment waited ' + H.days(v.turnaroundMs) +
         ' for peer review. The register is one hamburger old and already has a backlog culture.' }; });
 
   R('ss1-cpi-context', 'small-sample', { c: 1, pr: 5 },
     function (m) { return m.only && num(m.only.cpi); },
     function (m, H) { var v = m.only;
       return { title: 'UNNECESSARY STATISTICAL NOTICE', body:
-        'The mean Composite Patty Index across all certified specimens is ' + H.n1(v.cpi) +
+        'The mean Composite Patty Index across all certified establishments is ' + H.n1(v.cpi) +
         '. It is also the median, the maximum, the minimum and the mode. This information was expensive to calculate.' }; },
     function (m, H) { var v = m.only;
       return { title: 'DISTRIBUTION SUMMARY', body:
@@ -214,32 +214,32 @@
       'Following ' + (m.counts.certified === 1 ? 'one hamburger' : m.counts.certified + ' hamburgers') +
       ', the Bureau has detected a 100% rate of burger consumption during burger evaluations. Causality has not been established.' }; },
     function (m, H) { return { title: 'OBSERVATIONAL FINDING', body:
-      '100% of specimens examined by this Bureau have been hamburgers. The Office is investigating whether this reflects sampling bias.' }; });
+      '100% of establishments examined by this Bureau have been hamburgers. The Office is investigating whether this reflects sampling bias.' }; });
 
   R('ss1-both-auditors-participated', 'small-sample', { c: 1, pr: 2, r: 'uncommon' },
     function (m) { return m.counts.certified >= 1 && m.counts.certified <= 4; },
     function (m, H) { return { title: 'COMPLIANCE CONFIRMATION', body:
       'Both auditors have participated in 100% of certified evaluations. This is a requirement for certification, which makes the statistic technically flawless and completely uninformative.' }; });
 
-  R('ss1-first-specimen-named', 'small-sample', { c: 1, pr: 4 },
+  R('ss1-first-establishment-named', 'small-sample', { c: 1, pr: 4 },
     function (m) { return m.counts.certified >= 1 && m.counts.certified <= 5 && m.paired.first; },
     function (m, H) { var v = m.paired.first;
       return { title: 'HISTORICAL RECORD', body:
-        'Specimen ' + v.specimen + ', ' + H.spec(v) + ', remains the Bureau\'s founding certified evaluation. ' +
+        'Establishment ' + v.specimen + ', ' + H.spec(v) + ', remains the Bureau\'s founding certified evaluation. ' +
         'A commemorative plaque has been proposed and rejected on cost grounds.' }; });
 
   R('ss2-first-comparison', 'small-sample', { c: 2, pr: 7 },
     function (m) { return m.counts.certified === 2 && num(m.paired.gap) && Math.abs(m.paired.gap) >= 0.2; },
     function (m, H) { var w = m.paired.moreGenerous;
       return { title: 'PROVISIONAL ACCUSATION', body:
-        'After two certified specimens, ' + H.name(w) + ' appears ' + H.abs1(m.paired.gap) +
+        'After two certified establishments, ' + H.name(w) + ' appears ' + H.abs1(m.paired.gap) +
         ' points more generous overall. The sample size is laughable. The accusation stands.' }; });
 
   R('ss2-category-claim', 'small-sample', { c: 2, pr: 6 },
     function (m) { return m.counts.certified === 2 && m.paired.mostContestedCat && gt(m.paired.mostContestedVal, 0.3); },
     function (m, H) { var c = m.paired.mostContestedCat;
       return { title: 'EMERGING DISPUTE', body:
-        'Across both certified specimens, ' + H.cat(c) + ' shows the widest average disagreement (' + H.n2(m.paired.mostContestedVal) +
+        'Across both certified establishments, ' + H.cat(c) + ' shows the widest average disagreement (' + H.n2(m.paired.mostContestedVal) +
         ' points). Two data points is not a pattern. The Bureau has filed it as one.' }; });
 
   R('ss-early-streak', 'small-sample', { c: 2, pr: 6 },
@@ -251,13 +251,13 @@
       var s = m.paired.streaks;
       var who = s.ryanHigher.current >= s.devinHigher.current ? 'ryan' : 'devin';
       return { title: 'PATTERN ALLEGATION', body:
-        H.name(who) + ' has scored higher on every certified specimen so far — all ' + m.counts.certified +
+        H.name(who) + ' has scored higher on every certified establishment so far — all ' + m.counts.certified +
         ' of them. The Office is aware of how few that is and has issued the finding regardless.' }; });
 
   R('ss-no-certified-yet', 'small-sample', { c: 0, pr: 10, x: 'sample-size' },
     function (m) { return m.counts.certified === 0 && m.counts.burgers > 0; },
     function (m, H) { return { title: 'REGISTER NOT YET OPERATIONAL', body:
-      'No specimen has completed peer review. The Bureau possesses ' + m.counts.burgers + ' ' + H.plural(m.counts.burgers, 'filing') +
+      'No establishment has completed peer review. The Bureau possesses ' + m.counts.burgers + ' ' + H.plural(m.counts.burgers, 'filing') +
       ' and zero certified findings, a ratio it considers characteristic.' }; },
     function (m, H) { return { title: 'AWAITING QUORUM', body:
       'The Office of Auditor Accountability cannot compute a Composite Patty Index until both auditors have examined at least one identical hamburger. The wait continues.' }; });
@@ -265,7 +265,7 @@
   R('ss-completely-empty', 'small-sample', { c: 0, pr: 10, x: 'sample-size' },
     function (m) { return m.counts.burgers === 0; },
     function (m, H) { return { title: 'REGISTER EMPTY', body:
-      'The Bureau holds no specimens whatsoever. Analytical capability is presently theoretical. Staff morale is reported as unchanged.' }; },
+      'The Bureau holds no establishments whatsoever. Analytical capability is presently theoretical. Staff morale is reported as unchanged.' }; },
     function (m, H) { return { title: 'NO DATA ON FILE', body:
       'The Office of Auditor Accountability has been fully staffed and funded in anticipation of a hamburger. None has arrived.' }; });
 
@@ -289,19 +289,19 @@
       H.name(gen(m)) + "'s average score remains " + H.abs1(m.paired.gap) + ' points above ' + H.name(harsh(m)) +
       "'s. The Bureau has ruled out coincidence and is now investigating whether " + H.name(gen(m)) + ' simply enjoys hamburgers too much.' }; },
     function (m, H) { return { title: 'SEVERE DIVERGENCE NOTICE', body:
-      'Across ' + m.paired.n + ' certified specimens, ' + H.name(gen(m)) + ' averages ' + H.abs1(m.paired.gap) +
-      ' points higher than ' + H.name(harsh(m)) + '. Two auditors, one hamburger, two entirely different afternoons.' }; },
+      'Across ' + m.paired.n + ' certified establishments, ' + H.name(gen(m)) + ' averages ' + H.abs1(m.paired.gap) +
+      ' points higher than ' + H.name(harsh(m)) + '. Two auditors, one establishment, two entirely different afternoons.' }; },
     function (m, H) { return { title: 'CALIBRATION EMERGENCY', body:
-      'The generosity gap has reached ' + H.abs2(m.paired.gap) + ' points. The Office recommends the auditors eat the same hamburger at the same time, which is what they have been doing.' }; });
+      'The generosity gap has reached ' + H.abs2(m.paired.gap) + ' points. The Office recommends the auditors recalibrate against a shared establishment, which is the only thing they have in common.' }; });
 
   R('gen-gap-large', 'generosity', { c: 5, pr: 7, x: 'generosity-gap' },
     function (m) { return gt(Math.abs(m.paired.gap), 0.45) && !gt(Math.abs(m.paired.gap), 0.8); },
     function (m, H) { return { title: 'GENEROSITY DIFFERENTIAL', body:
       H.name(gen(m)) + ' averages ' + H.abs2(m.paired.gap) + ' points above ' + H.name(harsh(m)) +
-      ' across ' + m.paired.n + ' certified specimens. The Bureau is monitoring and has no intention of intervening.' }; },
+      ' across ' + m.paired.n + ' certified establishments. The Bureau is monitoring and has no intention of intervening.' }; },
     function (m, H) { return { title: 'PERSISTENT SKEW', body:
       'Mean weighted scores: ' + H.name('ryan') + ' ' + H.n2(m.paired.ryanMean) + ', ' + H.name('devin') + ' ' + H.n2(m.paired.devinMean) +
-      '. The difference has survived ' + m.paired.n + ' specimens and shows no sign of embarrassment.' }; });
+      '. The difference has survived ' + m.paired.n + ' establishments and shows no sign of embarrassment.' }; });
 
   R('gen-gap-modest', 'generosity', { c: 4, pr: 5, x: 'generosity-gap' },
     function (m) { return gt(Math.abs(m.paired.gap), 0.15) && !gt(Math.abs(m.paired.gap), 0.45); },
@@ -313,7 +313,7 @@
     function (m) { return num(m.paired.gap) && Math.abs(m.paired.gap) <= 0.08; },
     function (m, H) { return { title: 'COMMENDATION FOR CALIBRATION', body:
       'Mean weighted scores differ by ' + H.abs2(m.paired.gap) + ' points across ' + m.paired.n +
-      ' specimens. The Office of Auditor Accountability is disappointed to report that both auditors appear to be doing their jobs correctly.' }; },
+      ' establishments. The Office of Auditor Accountability is disappointed to report that both auditors appear to be doing their jobs correctly.' }; },
     function (m, H) { return { title: 'NOTHING TO REPORT', body:
       'The generosity gap stands at ' + H.abs2(m.paired.gap) + ' points. Investigators have found no misconduct and are visibly frustrated.' }; });
 
@@ -425,7 +425,7 @@
       var n = Math.max(p.ryanHigherCount, p.devinHigherCount);
       return { title: 'SYSTEMATIC DIFFERENTIAL', body:
         H.name(who) + ' has recorded the higher weighted score on ' + n + ' of ' + (p.ryanHigherCount + p.devinHigherCount) +
-        ' contested specimens. The Bureau no longer describes this as chance.' }; });
+        ' contested establishments. The Bureau no longer describes this as chance.' }; });
 
   R('gen-higher-count-even', 'generosity', { c: 6, pr: 6 },
     function (m) {
@@ -434,7 +434,7 @@
     },
     function (m, H) { var p = m.paired;
       return { title: 'BALANCED DISAGREEMENT', body:
-        'Ryan has scored higher on ' + p.ryanHigherCount + ' specimens; Devin on ' + p.devinHigherCount +
+        'Ryan has scored higher on ' + p.ryanHigherCount + ' establishments; Devin on ' + p.devinHigherCount +
         '. The auditors disagree constantly and symmetrically, which the Office finds almost elegant.' }; });
 
   R('gen-median-vs-mean-ryan', 'generosity', { a: 6, pr: 4 },
@@ -514,14 +514,14 @@
   R('gen-cpi-mean-high', 'generosity', { c: 5, pr: 5 },
     function (m) { return gt(m.paired.cpi.mean, 85); },
     function (m, H) { return { title: 'REGISTER-WIDE INFLATION', body:
-      'The mean Composite Patty Index across ' + m.paired.n + ' certified specimens is ' + H.n1(m.paired.cpi.mean) +
+      'The mean Composite Patty Index across ' + m.paired.n + ' certified establishments is ' + H.n1(m.paired.cpi.mean) +
       '. On a 0–100 scale, this Bureau has apparently never encountered a bad hamburger.' }; });
 
   R('gen-cpi-mean-low', 'generosity', { c: 5, pr: 5 },
     function (m) { return lt(m.paired.cpi.mean, 68); },
     function (m, H) { return { title: 'REGISTER-WIDE PESSIMISM', body:
       'Mean CPI stands at ' + H.n1(m.paired.cpi.mean) + ' across ' + m.paired.n +
-      ' specimens. The auditors continue to eat hamburgers voluntarily, which complicates the analysis.' }; });
+      ' establishments. The auditors continue to eat hamburgers voluntarily, which complicates the analysis.' }; });
 
   R('gen-pending-generosity-note', 'generosity', { a: 3, p: 1, pr: 4 },
     function (m) {
@@ -532,7 +532,7 @@
       var r = m.auditors.ryan, d = m.auditors.devin;
       var who = r.scores.mean > d.scores.mean ? 'ryan' : 'devin';
       return { title: 'UNMATCHED DATA CAUTION', body:
-        'Across all filed audits — including specimens still awaiting peer review — ' + H.name(who) +
+        'Across all filed audits — including establishments still awaiting peer review — ' + H.name(who) +
         ' averages higher. The Office stresses that these datasets are not paired and has published the comparison anyway.' }; });
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -690,7 +690,7 @@
     function (m, H) { var c = m.strongestCat, b = m.categoryBoard[c];
       return { title: 'SECTOR PERFORMANCE REVIEW', body:
         H.cat(c) + ' is the strongest sector in the register, averaging ' + H.n1(b.mean) +
-        ' across ' + m.paired.n + ' certified specimens. The Bureau attributes this to competence somewhere in the supply chain.' }; });
+        ' across ' + m.paired.n + ' certified establishments. The Bureau attributes this to competence somewhere in the supply chain.' }; });
 
   R('cat-register-weakest', 'category-bias', { c: 4, pr: 7, x: 'register-cat' },
     function (m) { return m.weakestCat && num(m.categoryBoard[m.weakestCat].mean); },
@@ -700,7 +700,7 @@
         '. The Office has drafted a strongly worded letter addressed to the concept of ' + H.lcat(c) + '.' }; },
     function (m, H) { var c = m.weakestCat, b = m.categoryBoard[c];
       return { title: 'SYSTEMIC UNDERPERFORMANCE', body:
-        'Across every certified specimen, ' + H.cat(c) + ' averages ' + H.n1(b.mean) +
+        'Across every certified establishment, ' + H.cat(c) + ' averages ' + H.n1(b.mean) +
         ' — lower than any other attribute. This is no longer a run of bad luck. It is an industry.' }; });
 
   R('cat-fries-hostility', 'category-bias', { c: 5, pr: 7 },
@@ -867,7 +867,7 @@
     function (m) { return gt(m.paired.meanAbsDisagreement, 0.55) && !gt(m.paired.meanAbsDisagreement, 0.9); },
     function (m, H) { return { title: 'ELEVATED DISAGREEMENT', body:
       'Mean absolute category disagreement: ' + H.n2(m.paired.meanAbsDisagreement) +
-      ' points across ' + m.paired.n + ' certified specimens. Within the range the Bureau describes as "spirited".' }; });
+      ' points across ' + m.paired.n + ' certified establishments. Within the range the Bureau describes as "spirited".' }; });
 
   R('dis-mean-low', 'disagreement', { c: 4, pr: 7, x: 'mean-disagreement' },
     function (m) { return lt(m.paired.meanAbsDisagreement, 0.25); },
@@ -875,7 +875,7 @@
       'Mean category disagreement is only ' + H.n2(m.paired.meanAbsDisagreement) +
       ' points. Two independent auditors should not agree this closely. The Office is obliged to raise the possibility of conferring.' }; },
     function (m, H) { return { title: 'COMMENDATION FOR CONCORDANCE', body:
-      'Across ' + m.paired.n + ' specimens the auditors differ by an average of ' + H.n2(m.paired.meanAbsDisagreement) +
+      'Across ' + m.paired.n + ' establishments the auditors differ by an average of ' + H.n2(m.paired.meanAbsDisagreement) +
       ' points. Exemplary calibration, or a shared inability to taste anything unusual.' }; });
 
   R('dis-biggest-cell-ever', 'disagreement', { c: 3, pr: 8 },
@@ -896,7 +896,7 @@
         H.abs2(v.weightedDelta) + ' points higher than ' + H.other(hi) + '. Both men were present at the same table.' }; },
     function (m, H) { var v = m.paired.biggestWeightedDisagreement;
       return { title: 'SPECIMEN UNDER DISPUTE', body:
-        'Specimen ' + v.specimen + ' carries the register\'s widest weighted disagreement at ' + H.abs2(v.weightedDelta) +
+        'Establishment ' + v.specimen + ' carries the register\'s widest weighted disagreement at ' + H.abs2(v.weightedDelta) +
         ' points. Its Composite Patty Index of ' + H.cpi(v) + ' is therefore a compromise nobody endorses.' }; });
 
   R('dis-strongest-consensus', 'disagreement', { c: 4, pr: 6 },
@@ -904,7 +904,7 @@
     function (m, H) { var v = m.paired.closestSpecimen;
       return { title: 'STRONGEST CONSENSUS', body:
         'The auditors agree most completely on ' + H.spec(v) + ', separated by ' + H.abs2(v.weightedDelta) +
-        ' points. The Bureau regards this specimen as settled law.' }; });
+        ' points. The Bureau regards this establishment as settled law.' }; });
 
   R('dis-exact-agreement-rate-high', 'disagreement', { c: 4, pr: 7 },
     function (m) { return gt(m.paired.exactPct, 25); },
@@ -952,21 +952,21 @@
     function (m) { return m.paired.streaks.disagreement.current >= 3; },
     function (m, H) { var n = m.paired.streaks.disagreement.current;
       return { title: 'ESCALATING DISPUTE', body:
-        'The last ' + n + ' certified specimens have each produced mean disagreement of 0.7 points or more. ' +
+        'The last ' + n + ' certified establishments have each produced mean disagreement of 0.7 points or more. ' +
         'The Office is monitoring the relationship as much as the data.' }; });
 
   R('dis-streak-longest', 'disagreement', { c: 6, pr: 6 },
     function (m) { return m.paired.streaks.disagreement.longest >= 4 && m.paired.streaks.disagreement.current < m.paired.streaks.disagreement.longest; },
     function (m, H) { var s = m.paired.streaks.disagreement;
       return { title: 'HISTORICAL DISPUTE PERIOD', body:
-        'The register\'s longest run of high-disagreement specimens reached ' + s.longest +
+        'The register\'s longest run of high-disagreement establishments reached ' + s.longest +
         ' consecutive filings. Relations have since improved, or the hamburgers have become less interesting.' }; });
 
   R('dis-agreement-streak', 'disagreement', { c: 4, pr: 7 },
     function (m) { return m.paired.streaks.agreement.current >= 3; },
     function (m, H) { var n = m.paired.streaks.agreement.current;
       return { title: 'SUSTAINED CONCORDANCE', body:
-        'The auditors have now agreed closely on ' + n + ' consecutive specimens (mean disagreement under 0.3). ' +
+        'The auditors have now agreed closely on ' + n + ' consecutive establishments (mean disagreement under 0.3). ' +
         'The Bureau is pleased and faintly suspicious.' }; });
 
   R('dis-controversial-but-highly-ranked', 'disagreement', { c: 5, pr: 8, r: 'uncommon' },
@@ -976,34 +976,34 @@
     },
     function (m, H) { var v = m.paired.biggestWeightedDisagreement;
       return { title: 'CONTESTED PODIUM PLACEMENT', body:
-        H.spec(v) + ' currently sits at ' + H.ord(v.rank) + ' in the Official Rankings despite being the register\'s most disputed specimen (' +
+        H.spec(v) + ' currently sits at ' + H.ord(v.rank) + ' in the Official Rankings despite being the register\'s most disputed establishment (' +
         H.abs2(v.weightedDelta) + ' points apart). Its position represents the average of two incompatible opinions.' }; });
 
   R('dis-sweep-recent', 'disagreement', { c: 3, pr: 7 },
     function (m) { return m.paired.streaks.sweeps.current >= 2; },
     function (m, H) { var n = m.paired.streaks.sweeps.current;
       return { title: 'CONSECUTIVE CLEAN SWEEPS', body:
-        'On each of the last ' + n + ' specimens, one auditor scored higher in all six categories. ' +
+        'On each of the last ' + n + ' establishments, one auditor scored higher in all six categories. ' +
         'The Bureau notes that partial agreement is permitted and apparently unfashionable.' }; });
 
   R('dis-total-sweeps', 'disagreement', { c: 6, pr: 6 },
     function (m) { return (m.paired.ryanSweeps + m.paired.devinSweeps) >= 4; },
     function (m, H) { var t = m.paired.ryanSweeps + m.paired.devinSweeps;
       return { title: 'SWEEP FREQUENCY REVIEW', body:
-        'On ' + t + ' of ' + m.paired.n + ' certified specimens, one auditor out-scored the other in every single category. ' +
+        'On ' + t + ' of ' + m.paired.n + ' certified establishments, one auditor out-scored the other in every single category. ' +
         'Ryan: ' + m.paired.ryanSweeps + '. Devin: ' + m.paired.devinSweeps + '.' }; });
 
   R('dis-no-sweeps', 'disagreement', { c: 6, pr: 5 },
     function (m) { return (m.paired.ryanSweeps + m.paired.devinSweeps) === 0 && m.paired.n >= 6; },
     function (m, H) { return { title: 'ABSENCE OF TOTAL DIVERGENCE', body:
-      'Across ' + m.paired.n + ' certified specimens, neither auditor has ever out-scored the other in all six categories at once. ' +
+      'Across ' + m.paired.n + ' certified establishments, neither auditor has ever out-scored the other in all six categories at once. ' +
       'Every disagreement so far has been partial, which is the civilised form.' }; });
 
   R('dis-tie-recorded', 'disagreement', { c: 2, pr: 7, r: 'rare' },
     function (m) { return m.paired.tieCount >= 1; },
     function (m, H) { return { title: 'WEIGHTED DEADLOCK', body:
       H.times(m.paired.tieCount).charAt(0).toUpperCase() + H.times(m.paired.tieCount).slice(1) +
-      ' the two auditors have produced identical weighted scores on the same specimen. The Bureau has no tie-breaking procedure and no intention of writing one.' }; });
+      ' the two auditors have produced identical weighted scores on the same establishment. The Bureau has no tie-breaking procedure and no intention of writing one.' }; });
 
   R('dis-disagreement-narrowing', 'disagreement', { c: 6, pr: 7 },
     function (m) {
@@ -1018,7 +1018,7 @@
       var h = Math.floor(v.length / 2);
       var early = m.stats.mean(v.slice(0, h)), late = m.stats.mean(v.slice(-h));
       return { title: 'CONVERGENCE DETECTED', body:
-        'Mean disagreement has fallen from ' + H.n2(early) + ' points in the register\'s early specimens to ' + H.n2(late) +
+        'Mean disagreement has fallen from ' + H.n2(early) + ' points in the register\'s early establishments to ' + H.n2(late) +
         ' more recently. The auditors are slowly becoming the same person.' }; });
 
   R('dis-disagreement-widening', 'disagreement', { c: 6, pr: 7 },
@@ -1113,7 +1113,7 @@
       var t = m.paired.views.filter(function (v) { return num(v.turnaroundMs) && num(v.meanAbsDelta); });
       var r = m.stats.correlation(t.map(function (v) { return v.turnaroundMs; }), t.map(function (v) { return v.meanAbsDelta; }));
       return { title: 'DELAY CORRELATION', body:
-        'The longer a specimen waits for peer review, the more the auditors disagree about it (r = ' + H.n2(r) +
+        'The longer a establishment waits for peer review, the more the auditors disagree about it (r = ' + H.n2(r) +
         '). The Bureau advises prompt filing, primarily to protect the relationship.' }; });
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -1162,7 +1162,7 @@
     function (m) { return A(m, 'ryan').count10 === 0 && A(m, 'devin').count10 === 0; },
     function (m, H) { return { title: 'COMMENDATION FOR PROCEDURAL RESTRAINT', body:
       'Neither auditor has awarded a 10.0 through the first ' + m.counts.certified +
-      ' certified specimens. The Bureau recognises this rare display of institutional discipline.' }; },
+      ' certified establishments. The Bureau recognises this rare display of institutional discipline.' }; },
     function (m, H) { return { title: 'PERFECTION WITHHELD', body:
       'Across ' + (A(m, 'ryan').totalCells + A(m, 'devin').totalCells) +
       ' individual category scores, not one 10.0 has been issued. Somewhere out there is a hamburger neither man has met.' }; });
@@ -1282,12 +1282,12 @@
     function (m, H) { var p = m.paired.cpi;
       return { title: 'SKEWED REGISTER', body:
         'Mean CPI is ' + H.n1(p.mean) + ' but median CPI is ' + H.n1(p.median) +
-        '. A small number of specimens are pulling the entire register around.' }; });
+        '. A small number of establishments are pulling the entire register around.' }; });
 
   R('dist-cpi-tight', 'distribution', { c: 6, pr: 6, x: 'cpi-spread' },
     function (m) { return lt(m.paired.cpi.sd, 5); },
     function (m, H) { return { title: 'HOMOGENEOUS REGISTER', body:
-      'Composite Patty Index standard deviation across ' + m.paired.n + ' specimens: ' + H.n2(m.paired.cpi.sd) +
+      'Composite Patty Index standard deviation across ' + m.paired.n + ' establishments: ' + H.n2(m.paired.cpi.sd) +
       '. Every hamburger examined has been approximately as good as every other hamburger examined.' }; });
 
   R('dist-cpi-wide', 'distribution', { c: 6, pr: 6, x: 'cpi-spread' },
@@ -1431,12 +1431,12 @@
       var n = st(m)[who + 'Higher'].current;
       return { title: 'UNBROKEN DIFFERENTIAL', body:
         H.name(who) + ' has scored higher than ' + H.other(who) + ' on ' + n +
-        ' consecutive certified specimens. This is no longer variance; it is policy.' }; },
+        ' consecutive certified establishments. This is no longer variance; it is policy.' }; },
     function (m, H) {
       var who = st(m).ryanHigher.current >= st(m).devinHigher.current ? 'ryan' : 'devin';
       var n = st(m)[who + 'Higher'].current;
       return { title: 'STREAK NOTICE', body:
-        'Current run: ' + n + ' specimens in a row where ' + H.name(who) + ' recorded the higher weighted score. ' +
+        'Current run: ' + n + ' establishments in a row where ' + H.name(who) + ' recorded the higher weighted score. ' +
         H.other(who) + ' has been informed and has not responded.' }; });
 
   R('str-higher-current-short', 'streaks', { c: 3, pr: 6, x: 'higher-streak' },
@@ -1445,7 +1445,7 @@
       var who = st(m).ryanHigher.current >= st(m).devinHigher.current ? 'ryan' : 'devin';
       var n = st(m)[who + 'Higher'].current;
       return { title: 'EMERGING RUN', body:
-        H.name(who) + ' has taken the higher score on the last ' + n + ' specimens. The Bureau is watching without comment.' }; });
+        H.name(who) + ' has taken the higher score on the last ' + n + ' establishments. The Bureau is watching without comment.' }; });
 
   R('str-higher-longest-historic', 'streaks', { c: 8, pr: 6 },
     function (m) {
@@ -1459,13 +1459,13 @@
       var who = s.ryanHigher.longest >= s.devinHigher.longest ? 'ryan' : 'devin';
       return { title: 'HISTORICAL RECORD', body:
         'The longest run of consecutive higher scores belongs to ' + H.name(who) + ' at ' + s[who + 'Higher'].longest +
-        ' specimens. That period is now regarded internally as a golden age.' }; });
+        ' establishments. That period is now regarded internally as a golden age.' }; });
 
   R('str-nine-streak-ryan', 'streaks', { c: 3, pr: 7 },
     function (m) { return st(m).ryanNine.current >= 3; },
     function (m, H) { return { title: 'SUSTAINED ENTHUSIASM', body:
       'Ryan has issued a weighted score of 9.0 or above on ' + st(m).ryanNine.current +
-      ' consecutive specimens. The Office is checking whether he has simply found a good street.' }; });
+      ' consecutive establishments. The Office is checking whether he has simply found a good street.' }; });
 
   R('str-nine-streak-devin', 'streaks', { c: 3, pr: 7 },
     function (m) { return st(m).devinNine.current >= 3; },
@@ -1476,44 +1476,44 @@
   R('str-no-tens-streak', 'streaks', { c: 6, pr: 6 },
     function (m) { return st(m).noTens.current >= 6; },
     function (m, H) { return { title: 'RESTRAINT STREAK', body:
-      st(m).noTens.current + ' consecutive certified specimens without a single 10.0 from either auditor. ' +
+      st(m).noTens.current + ' consecutive certified establishments without a single 10.0 from either auditor. ' +
       'The Bureau recognises this as either rigour or a shared failure of imagination.' }; });
 
   R('str-patty-dominance', 'streaks', { c: 3, pr: 7 },
     function (m) { return st(m).pattyTop.current >= 3; },
     function (m, H) { return { title: 'PATTY SUPREMACY STREAK', body:
       'Patty has been the highest-scoring category on ' + st(m).pattyTop.current +
-      ' consecutive specimens. The Bureau considers this the correct outcome and is suspicious of how reliably it occurs.' }; });
+      ' consecutive establishments. The Bureau considers this the correct outcome and is suspicious of how reliably it occurs.' }; });
 
   R('str-patty-dominance-long', 'streaks', { c: 6, pr: 8, r: 'uncommon' },
     function (m) { return st(m).pattyTop.longest >= 5; },
     function (m, H) { return { title: 'STRUCTURAL PATTY ADVANTAGE', body:
       'At its peak, Patty led all categories on ' + st(m).pattyTop.longest +
-      ' specimens in a row. The Office has reviewed whether the 30% weighting is doing this and confirmed that it is not — the raw scores are simply higher.' }; });
+      ' establishments in a row. The Office has reviewed whether the 30% weighting is doing this and confirmed that it is not — the raw scores are simply higher.' }; });
 
   R('str-fries-disappointment', 'streaks', { c: 3, pr: 7 },
     function (m) { return st(m).friesBottom.current >= 3; },
     function (m, H) { return { title: 'ONGOING FRY EMERGENCY', body:
       'Fries have been the weakest category on ' + st(m).friesBottom.current +
-      ' consecutive specimens. The Bureau has begun to regard this as a regional failing rather than a series of accidents.' }; });
+      ' consecutive establishments. The Bureau has begun to regard this as a regional failing rather than a series of accidents.' }; });
 
   R('str-fries-disappointment-long', 'streaks', { c: 6, pr: 8, r: 'uncommon' },
     function (m) { return st(m).friesBottom.longest >= 5; },
     function (m, H) { return { title: 'SUSTAINED SIDE-ORDER CRISIS', body:
       'Fries have finished last on as many as ' + st(m).friesBottom.longest +
-      ' consecutive specimens. No establishment has yet been held accountable.' }; });
+      ' consecutive establishments. No establishment has yet been held accountable.' }; });
 
   R('str-value-bottom', 'streaks', { c: 3, pr: 6 },
     function (m) { return st(m).valueBottom.current >= 3; },
     function (m, H) { return { title: 'CONSECUTIVE VALUE FAILURES', body:
       'Value has been the lowest-scoring category on ' + st(m).valueBottom.current +
-      ' specimens running. The auditors keep going back, which weakens their position considerably.' }; });
+      ' establishments running. The auditors keep going back, which weakens their position considerably.' }; });
 
   R('str-agreement-longest', 'streaks', { c: 6, pr: 6 },
     function (m) { return st(m).agreement.longest >= 4; },
     function (m, H) { return { title: 'PERIOD OF ACCORD', body:
       'The register\'s longest run of close agreement is ' + st(m).agreement.longest +
-      ' consecutive specimens under 0.3 points of mean disagreement. The Office remembers it fondly.' }; });
+      ' consecutive establishments under 0.3 points of mean disagreement. The Office remembers it fondly.' }; });
 
   R('str-broken-streak', 'streaks', { c: 5, pr: 7, r: 'uncommon' },
     function (m) {
@@ -1606,7 +1606,7 @@
   R('con-spread-wide-both', 'consistency', { a: 5, pr: 5 },
     function (m) { return gt(A(m, 'ryan').meanSpread, 2.5) && gt(A(m, 'devin').meanSpread, 2.5); },
     function (m, H) { return { title: 'HIGH COMPONENT DIFFERENTIATION', body:
-      'Both auditors routinely spread their six category scores across more than 2.5 points on a single specimen. ' +
+      'Both auditors routinely spread their six category scores across more than 2.5 points on a single establishment. ' +
       'They are evaluating components rather than impressions, which the Office grudgingly respects.' }; });
 
   R('con-most-consistent-restaurant', 'consistency', { c: 6, pr: 6 },
@@ -1614,7 +1614,7 @@
     function (m, H) {
       var r = m.repeatRestaurants.filter(function (x) { return x.count >= 2 && lt(x.rangeCPI, 3); })[0];
       return { title: 'ESTABLISHMENT CONSISTENCY COMMENDATION', body:
-        r.name + ' has produced ' + r.count + ' certified specimens within ' + H.n1(r.rangeCPI) +
+        r.name + ' has produced ' + r.count + ' certified establishments within ' + H.n1(r.rangeCPI) +
         ' CPI points of each other. Reliability of this order is rare and largely unrewarded.' }; });
 
   R('con-inconsistent-restaurant', 'consistency', { c: 6, pr: 7 },
@@ -1622,7 +1622,7 @@
     function (m, H) {
       var r = m.repeatRestaurants.filter(function (x) { return x.count >= 2 && gt(x.rangeCPI, 12); })[0];
       return { title: 'ESTABLISHMENT VOLATILITY NOTICE', body:
-        r.name + "'s specimens span " + H.n1(r.rangeCPI) + ' CPI points. ' +
+        r.name + "'s establishments span " + H.n1(r.rangeCPI) + ' CPI points. ' +
         'The Bureau cannot determine whether the kitchen is inconsistent or the auditors are.' }; });
 
   R('con-ryan-predicts-outcome', 'consistency', { c: 6, pr: 7, r: 'uncommon' },
@@ -1728,7 +1728,7 @@
             Math.round(v[i - 1].cpi * 10) === Math.round(v[i - 2].cpi * 10)) { hit = v[i]; break; }
       }
       return { title: 'STATISTICAL IMPROBABILITY LOGGED', body:
-        'Three consecutive specimens produced an identical Composite Patty Index of ' + H.cpi(hit) +
+        'Three consecutive establishments produced an identical Composite Patty Index of ' + H.cpi(hit) +
         '. The Bureau has verified the arithmetic twice and remains uncomfortable.' }; });
 
   R('con-alternating-pattern', 'consistency', { c: 6, pr: 8, r: 'rare' },
@@ -1740,7 +1740,7 @@
       return true;
     },
     function (m, H) { return { title: 'ALTERNATION DETECTED', body:
-      'Over the last six contested specimens, the higher score has alternated between auditors without exception. ' +
+      'Over the last six contested establishments, the higher score has alternated between auditors without exception. ' +
       'The Bureau cannot rule out that they are taking turns.' }; });
 
   R('con-both-improving', 'consistency', { c: 6, pr: 6 },
@@ -1793,7 +1793,7 @@
     function (m) { return P(m).sameNumberOne && P(m).n >= 3; },
     function (m, H) { var v = P(m).ryanOrder[0];
       return { title: 'UNCONTESTED CHAMPION', body:
-        'Both auditors independently rank ' + H.spec(v) + ' as the finest specimen in the register. ' +
+        'Both auditors independently rank ' + H.spec(v) + ' as the finest establishment in the register. ' +
         'It holds ' + H.ord(v.rank) + ' officially with a CPI of ' + H.cpi(v) + '. The Bureau considers the matter closed.' }; });
 
   R('rank-different-number-one', 'ranking', { c: 3, pr: 8, x: 'top' },
@@ -1801,7 +1801,7 @@
     function (m, H) {
       var r = P(m).ryanOrder[0], d = P(m).devinOrder[0];
       return { title: 'DISPUTED CHAMPIONSHIP', body:
-        'Ryan\'s favourite specimen is ' + H.spec(r) + '. Devin\'s is ' + H.spec(d) +
+        'Ryan\'s favourite establishment is ' + H.spec(r) + '. Devin\'s is ' + H.spec(d) +
         '. The Official Rankings currently award the top position to ' + H.bare(P(m).official[0]) + ', which is at best a compromise.' }; },
     function (m, H) {
       var r = P(m).ryanOrder[0], d = P(m).devinOrder[0];
@@ -1820,37 +1820,37 @@
     function (m, H) {
       var r = P(m).ryanOrder[P(m).n - 1], d = P(m).devinOrder[P(m).n - 1];
       return { title: 'DISPUTED WORST SPECIMEN', body:
-        'Ryan\'s lowest-ranked specimen is ' + H.bare(r) + '; Devin\'s is ' + H.bare(d) +
+        'Ryan\'s lowest-ranked establishment is ' + H.bare(r) + '; Devin\'s is ' + H.bare(d) +
         '. The auditors cannot even agree on failure.' }; });
 
   R('rank-top3-overlap-full', 'ranking', { c: 4, pr: 6, x: 'top3' },
     function (m) { return P(m).top3Overlap === 3; },
     function (m, H) { return { title: 'PODIUM CONCORDANCE', body:
-      'Ryan and Devin nominate the same three specimens for their personal top three, though not necessarily in the same order. ' +
+      'Ryan and Devin nominate the same three establishments for their personal top three, though not necessarily in the same order. ' +
       'The Bureau regards this as the outer limit of agreement between these two men.' }; });
 
   R('rank-top3-overlap-none', 'ranking', { c: 5, pr: 9, x: 'top3', r: 'rare' },
     function (m) { return P(m).top3Overlap === 0 && P(m).n >= 5; },
     function (m, H) { return { title: 'TOTAL PODIUM DIVERGENCE', body:
-      'Not one specimen appears in both auditors\' personal top three. Zero overlap. ' +
+      'Not one establishment appears in both auditors\' personal top three. Zero overlap. ' +
       'The Official Rankings are the arithmetic mean of two entirely separate opinions about hamburgers.' }; });
 
   R('rank-top3-overlap-partial', 'ranking', { c: 4, pr: 5, x: 'top3' },
     function (m) { return P(m).top3Overlap === 1 || P(m).top3Overlap === 2; },
     function (m, H) { return { title: 'PARTIAL PODIUM AGREEMENT', body:
-      P(m).top3Overlap + ' of 3 specimens appear in both auditors\' personal top three. ' +
+      P(m).top3Overlap + ' of 3 establishments appear in both auditors\' personal top three. ' +
       'The Bureau describes this level of concordance as "adequate" because it has no better word.' }; });
 
   R('rank-top5-overlap', 'ranking', { c: 6, pr: 5 },
     function (m) { return num(P(m).top5Overlap) && P(m).top5Overlap <= 2; },
     function (m, H) { return { title: 'UPPER REGISTER DISPUTE', body:
-      'Only ' + P(m).top5Overlap + ' of the top five specimens are common to both personal rankings. ' +
+      'Only ' + P(m).top5Overlap + ' of the top five establishments are common to both personal rankings. ' +
       'The Bureau publishes a single Official Top Five and declines to explain how it was reached.' }; });
 
   R('rank-bottom3-overlap-full', 'ranking', { c: 5, pr: 5 },
     function (m) { return P(m).bottom3Overlap === 3; },
     function (m, H) { return { title: 'CONSENSUS ON FAILURE', body:
-      'Both auditors identify the same three worst specimens in the register. ' +
+      'Both auditors identify the same three worst establishments in the register. ' +
       'Agreement is evidently easier to reach in the negative.' }; });
 
   R('rank-official-mismatch-ryan', 'ranking', { c: 5, pr: 7 },
@@ -1902,7 +1902,7 @@
       var top = P(m).official[0];
       var row = P(m).rankRows.filter(function (r) { return r.view.id === top.id; })[0];
       return { title: 'CHAMPION BY COMMITTEE', body:
-        'The official #1 specimen, ' + H.spec(top) + ', is the personal favourite of neither auditor — Ryan ranks it ' +
+        'The official #1 establishment, ' + H.spec(top) + ', is the personal favourite of neither auditor — Ryan ranks it ' +
         H.ord(row.ryanRank) + ' and Devin ' + H.ord(row.devinRank) + '. ' +
         'It leads the register purely by being nobody\'s disappointment.' }; });
 
@@ -1914,13 +1914,13 @@
     function (m, H) {
       var diffs = P(m).rankRows.map(function (r) { return r.diff; });
       return { title: 'ORDERING INSTABILITY', body:
-        'On average, a specimen sits ' + H.n1(m.stats.mean(diffs)) +
+        'On average, a establishment sits ' + H.n1(m.stats.mean(diffs)) +
         ' places apart in the two personal rankings. The Official Rankings are considerably more confident than the auditors are.' }; });
 
   R('rank-perfect-agreement-order', 'ranking', { c: 5, pr: 9, r: 'legendary' },
     function (m) { return P(m).n >= 5 && P(m).rankRows.every(function (r) { return r.ryanRank === r.devinRank; }); },
     function (m, H) { return { title: 'PERFECT ORDINAL CONCORDANCE', body:
-      'Ryan and Devin rank all ' + P(m).n + ' certified specimens in exactly the same order. ' +
+      'Ryan and Devin rank all ' + P(m).n + ' certified establishments in exactly the same order. ' +
       'The Bureau has verified this result and asks that the auditors continue to file independently, as required.' }; });
 
   R('rank-top-heavy-gap', 'ranking', { c: 4, pr: 6 },
@@ -1942,7 +1942,7 @@
     function (m, H) {
       var o = P(m).official;
       return { title: 'CONTESTED SUMMIT', body:
-        'The top three specimens are separated by only ' + H.n1(o[0].cpi - o[2].cpi) +
+        'The top three establishments are separated by only ' + H.n1(o[0].cpi - o[2].cpi) +
         ' CPI points. At this margin the Bureau would prefer not to be asked which is actually best.' }; });
 
   R('rank-bottom-outlier', 'ranking', { c: 5, pr: 6 },
@@ -1953,7 +1953,7 @@
     function (m, H) {
       var o = P(m).official, n = o.length;
       return { title: 'ISOLATED FAILURE', body:
-        H.spec(o[n - 1]) + ' trails the next-worst specimen by ' + H.n1(o[n - 2].cpi - o[n - 1].cpi) +
+        H.spec(o[n - 1]) + ' trails the next-worst establishment by ' + H.n1(o[n - 2].cpi - o[n - 1].cpi) +
         ' CPI points. It is not merely last; it is alone.' }; });
 
   R('rank-mid-table-congestion', 'ranking', { c: 7, pr: 5 },
@@ -1967,21 +1967,21 @@
       var o = P(m).official, n = o.length;
       var mid = o.slice(Math.floor(n / 3), Math.ceil(n * 2 / 3));
       return { title: 'MID-TABLE CONGESTION', body:
-        mid.length + ' specimens occupy a band just ' + H.n1(mid[0].cpi - mid[mid.length - 1].cpi) +
+        mid.length + ' establishments occupy a band just ' + H.n1(mid[0].cpi - mid[mid.length - 1].cpi) +
         ' CPI points wide. Their relative positions should not be taken personally.' }; });
 
   R('rank-newest-debut-high', 'ranking', { c: 4, pr: 7 },
     function (m) { var l = P(m).latest; return l && l.rank != null && l.rank <= Math.max(2, Math.ceil(P(m).n * 0.2)); },
     function (m, H) { var l = P(m).latest;
       return { title: 'HIGH DEBUT', body:
-        'The most recently certified specimen, ' + H.spec(l) + ', has entered the Official Rankings at ' + H.ord(l.rank) +
+        'The most recently certified establishment, ' + H.spec(l) + ', has entered the Official Rankings at ' + H.ord(l.rank) +
         ' with a CPI of ' + H.cpi(l) + '. The Bureau notes that recency bias is a documented phenomenon.' }; });
 
   R('rank-newest-debut-low', 'ranking', { c: 4, pr: 6 },
     function (m) { var l = P(m).latest; return l && l.rank != null && l.rank === P(m).n && P(m).n >= 4; },
     function (m, H) { var l = P(m).latest;
       return { title: 'DEBUT AT THE FOOT', body:
-        'The register\'s newest certified specimen, ' + H.spec(l) + ', has entered directly in last place at ' +
+        'The register\'s newest certified establishment, ' + H.spec(l) + ', has entered directly in last place at ' +
         H.cpi(l) + '. An inauspicious beginning.' }; });
 
   R('rank-personal-top-differs-from-official', 'ranking', { c: 5, pr: 6 },
@@ -2056,7 +2056,7 @@
   R('time-mean-turnaround-slow', 'time', { c: 4, pr: 6, x: 'turnaround' },
     function (m) { return num(m.paired.turnaround.mean) && m.paired.turnaround.mean > 2 * DAY; },
     function (m, H) { return { title: 'SYSTEMIC REVIEW DELAY', body:
-      'Specimens wait an average of ' + H.days(m.paired.turnaround.mean) +
+      'Establishments wait an average of ' + H.days(m.paired.turnaround.mean) +
       ' between the first filing and peer review. The Office has described this internally as "the lag" and stopped short of assigning blame.' }; });
 
   /* --- pending backlog --- */
@@ -2064,7 +2064,7 @@
     function (m) { return m.pendingFor.ryan.length >= 2; },
     function (m, H) { var n = m.pendingFor.ryan.length;
       return { title: 'OUTSTANDING REVIEW OBLIGATIONS', body:
-        'Devin currently has ' + n + ' ' + H.plural(n, 'specimen') + ' awaiting Ryan\'s peer review. ' +
+        'Devin currently has ' + n + ' ' + H.plural(n, 'establishment') + ' awaiting Ryan\'s peer review. ' +
         'The Office has declined to characterise this as a backlog pending legal advice.' }; },
     function (m, H) { var n = m.pendingFor.ryan.length;
       return { title: 'REVIEW NOTICE: RYAN', body:
@@ -2074,11 +2074,11 @@
     function (m) { return m.pendingFor.devin.length >= 2; },
     function (m, H) { var n = m.pendingFor.devin.length;
       return { title: 'OUTSTANDING REVIEW OBLIGATIONS', body:
-        'Ryan currently has ' + n + ' ' + H.plural(n, 'specimen') + ' awaiting Devin\'s peer review. ' +
+        'Ryan currently has ' + n + ' ' + H.plural(n, 'establishment') + ' awaiting Devin\'s peer review. ' +
         'The Office has declined to characterise this as a backlog pending legal advice.' }; },
     function (m, H) { var n = m.pendingFor.devin.length;
       return { title: 'REVIEW NOTICE: DEVIN', body:
-        n + ' ' + H.plural(n, 'specimen') + ' sit uncertified because Devin has not yet filed. The Composite Patty Index waits for no one, except him.' }; });
+        n + ' ' + H.plural(n, 'establishment') + ' sit uncertified because Devin has not yet filed. The Composite Patty Index waits for no one, except him.' }; });
 
   R('time-pending-single', 'time', { p: 1, pr: 6 },
     function (m) { return m.counts.pending === 1 && m.oldestPending; },
@@ -2095,13 +2095,13 @@
         '. ' + H.name(v.missing) + ' has been notified by every means short of a subpoena.' }; },
     function (m, H) { var v = m.oldestPending;
       return { title: 'AGED FILING ALERT', body:
-        'The register\'s oldest unreviewed specimen has now waited ' + H.days(v.pendingAgeMs) +
+        'The register\'s oldest unreviewed establishment has now waited ' + H.days(v.pendingAgeMs) +
         '. The hamburger in question no longer exists in any physical form.' }; });
 
   R('time-no-pending', 'time', { c: 4, pr: 6 },
     function (m) { return m.counts.pending === 0 && m.counts.certified >= 4; },
     function (m, H) { return { title: 'FULL COMPLIANCE', body:
-      'Every specimen in the register has completed peer review. No filing is outstanding. ' +
+      'Every establishment in the register has completed peer review. No filing is outstanding. ' +
       'The Office of Auditor Accountability finds itself, briefly, with nothing to accuse anyone of.' }; });
 
   R('time-both-have-pending', 'time', { p: 2, pr: 7, r: 'uncommon' },
@@ -2115,13 +2115,13 @@
   R('time-long-inactivity', 'time', { c: 2, pr: 7 },
     function (m) { return num(m.activity.sinceLastMs) && m.activity.sinceLastMs > 21 * DAY; },
     function (m, H) { return { title: 'BUREAUCRATIC DORMANCY', body:
-      'No specimen has been filed for ' + H.days(m.activity.sinceLastMs) +
+      'No establishment has been filed for ' + H.days(m.activity.sinceLastMs) +
       '. The Office of Auditor Accountability continues to operate at full cost.' }; });
 
   R('time-recent-activity', 'time', { c: 2, pr: 4 },
     function (m) { return num(m.activity.sinceLastMs) && m.activity.sinceLastMs < 2 * DAY; },
     function (m, H) { return { title: 'ACTIVE CASELOAD', body:
-      'A specimen was filed within the last ' + H.hours(m.activity.sinceLastMs) +
+      'A establishment was filed within the last ' + H.hours(m.activity.sinceLastMs) +
       '. The register is currently in an operational phase, which historically does not last.' }; });
 
   R('time-longest-gap', 'time', { c: 5, pr: 5 },
@@ -2138,7 +2138,7 @@
     function (m, H) {
       var g = m.activity.gaps.filter(function (x) { return x < DAY; });
       return { title: 'ACTIVITY BURST DETECTED', body:
-        'On ' + H.times(g.length) + ', two specimens were filed within a single day of each other. ' +
+        'On ' + H.times(g.length) + ', two establishments were filed within a single day of each other. ' +
         'The Bureau does not require auditors to pace themselves and is beginning to wonder if it should.' }; });
 
   R('time-first-vs-latest', 'time', { c: 5, pr: 6 },
@@ -2150,7 +2150,7 @@
       var f = m.paired.first, l = m.paired.latest;
       var dir = l.cpi > f.cpi ? 'improved' : 'declined';
       return { title: 'REGISTER TRAJECTORY', body:
-        'The Bureau\'s first certified specimen scored ' + H.cpi(f) + '. Its most recent scored ' + H.cpi(l) +
+        'The Bureau\'s first certified establishment scored ' + H.cpi(f) + '. Its most recent scored ' + H.cpi(l) +
         '. Hamburger selection has ' + dir + ' by ' + H.abs1(l.cpi - f.cpi) + ' points, or the auditors have.' }; });
 
   R('time-register-age', 'time', { c: 3, pr: 4 },
@@ -2162,7 +2162,7 @@
       var f = m.paired.first;
       return { title: 'INSTITUTIONAL LONGEVITY', body:
         'The Bureau has been in continuous operation for ' + H.days(Date.now() - f.createdTs) +
-        ' and has certified ' + m.counts.certified + ' ' + H.plural(m.counts.certified, 'specimen') + '. ' +
+        ' and has certified ' + m.counts.certified + ' ' + H.plural(m.counts.certified, 'establishment') + '. ' +
         'Productivity metrics have not been published.' }; });
 
   R('time-review-faster-over-time', 'time', { c: 6, pr: 6 },
@@ -2200,7 +2200,7 @@
     function (m, H) {
       var n = m.paired.views.filter(function (v) { return num(v.turnaroundMs) && v.turnaroundMs < 6 * 3600000; }).length;
       return { title: 'SIMULTANEOUS EXAMINATION PATTERN', body:
-        n + ' specimens were peer-reviewed within six hours of the initial filing. ' +
+        n + ' establishments were peer-reviewed within six hours of the initial filing. ' +
         'The Bureau requires independent audits and has never specified that they occur in different postcodes.' }; });
 
   /* --- restaurants --- */
@@ -2209,7 +2209,8 @@
     function (m, H) {
       var r = m.repeatRestaurants[0];
       return { title: 'REPEAT ESTABLISHMENT', body:
-        r.name + ' has now been examined ' + H.times(r.count) + ', averaging a CPI of ' + H.n1(r.meanCPI) +
+        r.name + ' has now been audited ' + H.times(r.count) + ' across ' + H.where(r.view) +
+        ', holding a composite of ' + H.n1(r.meanCPI) +
         '. The Bureau notes that returning to an establishment constitutes an endorsement it did not authorise.' }; });
 
   R('rest-strongest', 'restaurants', { c: 5, pr: 7, x: 'rest-standing' },
@@ -2217,13 +2218,13 @@
     function (m, H) { var r = m.topRestaurant;
       return { title: 'LEADING ESTABLISHMENT', body:
         r.name + ' holds the highest mean Composite Patty Index of any repeat establishment at ' + H.n1(r.meanCPI) +
-        ' across ' + r.count + ' specimens. A certificate has been drafted and not sent.' }; });
+        ' across ' + r.count + ' establishments. A certificate has been drafted and not sent.' }; });
 
   R('rest-weakest', 'restaurants', { c: 5, pr: 7, x: 'rest-standing' },
     function (m) { return m.worstRestaurant && m.worstRestaurant.count >= 2 && m.topRestaurant && m.worstRestaurant.key !== m.topRestaurant.key; },
     function (m, H) { var r = m.worstRestaurant;
       return { title: 'ESTABLISHMENT UNDER REVIEW', body:
-        r.name + ' averages ' + H.n1(r.meanCPI) + ' CPI across ' + r.count + ' specimens, the weakest repeat record in the register. ' +
+        r.name + ' averages ' + H.n1(r.meanCPI) + ' CPI across ' + r.count + ' establishments, the weakest repeat record in the register. ' +
         'The auditors have nonetheless returned, which the Office regards as evidence against them rather than the restaurant.' }; });
 
   R('rest-auditor-preference', 'restaurants', { c: 4, pr: 7 },
@@ -2243,29 +2244,29 @@
 
   R('rest-concentration', 'restaurants', { c: 6, pr: 6 },
     function (m) {
-      if (!m.restaurants.length) return false;
-      return (m.restaurants[0].count / m.counts.certified) > 0.35 && m.restaurants[0].count >= 3;
+      if (!m.restaurants.length || !m.counts.audits) return false;
+      return (m.restaurants[0].count / m.counts.audits) > 0.35 && m.restaurants[0].count >= 3;
     },
     function (m, H) {
       var r = m.restaurants[0];
       return { title: 'SAMPLING CONCENTRATION WARNING', body:
-        H.pct((r.count / m.counts.certified) * 100) + ' of all certified specimens originate from ' + r.name +
+        H.pct((r.count / m.counts.audits) * 100) + ' of every audit the Bureau holds was filed at ' + r.name +
         '. The Bureau\'s findings should be understood as largely a description of one kitchen.' }; });
 
-  R('rest-best-single-specimen', 'restaurants', { c: 4, pr: 5 },
+  R('rest-best-single-establishment', 'restaurants', { c: 4, pr: 5 },
     function (m) { return m.paired.official.length >= 3; },
     function (m, H) {
       var top = m.paired.official[0];
       return { title: 'ESTABLISHMENT OF RECORD', body:
-        'The highest Composite Patty Index yet recorded, ' + H.cpi(top) + ', belongs to ' + top.restaurant +
-        ' for its ' + top.burger + '. No establishment has been asked to comment.' }; });
+        'The highest Composite Patty Index yet recorded, ' + H.cpi(top) + ', belongs to ' + H.spec(top) +
+        ' on the evidence of ' + H.visits(top) + '. No establishment has been asked to comment.' }; });
 
   R('rest-consistency-champion', 'restaurants', { c: 6, pr: 6 },
     function (m) { return m.repeatRestaurants.some(function (r) { return r.count >= 3 && lt(r.sdCPI, 2); }); },
     function (m, H) {
       var r = m.repeatRestaurants.filter(function (x) { return x.count >= 3 && lt(x.sdCPI, 2); })[0];
       return { title: 'COMMENDATION FOR OPERATIONAL CONSISTENCY', body:
-        r.name + ' has produced ' + r.count + ' specimens with a CPI standard deviation of just ' + H.n2(r.sdCPI) +
+        r.name + ' has produced ' + r.count + ' establishments with a CPI standard deviation of just ' + H.n2(r.sdCPI) +
         '. Whatever they are doing, they do it the same way every time.' }; });
 
   R('rest-gap-vs-register', 'restaurants', { c: 6, pr: 6 },
@@ -2290,14 +2291,14 @@
 
   R('rest-single-visit-majority', 'restaurants', { c: 5, pr: 4 },
     function (m) {
-      var singles = m.restaurants.filter(function (r) { return r.count === 1; }).length;
+      var singles = m.restaurants.filter(function (r) { return !r.revisited; }).length;
       return m.restaurants.length >= 4 && (singles / m.restaurants.length) > 0.7;
     },
     function (m, H) {
-      var singles = m.restaurants.filter(function (r) { return r.count === 1; }).length;
+      var singles = m.restaurants.filter(function (r) { return !r.revisited; }).length;
       return { title: 'UNNECESSARY STATISTICAL NOTICE', body:
-        singles + ' of ' + m.restaurants.length + ' establishments have been visited exactly once. ' +
-        'Their entire reputation with this Bureau rests on a single afternoon.' }; });
+        singles + ' of ' + m.restaurants.length + ' certified establishments were visited exactly once by each auditor. ' +
+        'Their entire reputation with this Bureau rests on two afternoons.' }; });
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -2397,7 +2398,7 @@
         'The register\'s weakest Overall Flavor score, ' + H.n1(b.worstValue) + ', belongs to ' + H.spec(b.worst) +
         '. Both auditors were present and both were disappointed.' }; });
 
-  /* --- structural oddities within one specimen --- */
+  /* --- structural oddities within one establishment --- */
   R('spec-elite-bad-fries', 'specimens', { c: 5, pr: 8, r: 'uncommon' },
     function (m) {
       return m.certified.some(function (v) { return v.rank != null && v.rank <= 3 && v.combined.fries < 6.5; });
@@ -2405,7 +2406,7 @@
     function (m, H) {
       var v = m.certified.filter(function (x) { return x.rank != null && x.rank <= 3 && x.combined.fries < 6.5; })[0];
       return { title: 'FRY EMERGENCY', body:
-        'The current ' + H.ord(v.rank) + ' specimen, ' + H.spec(v) + ', carries a Fries score of just ' + H.n1(v.combined.fries) +
+        'The current ' + H.ord(v.rank) + ' establishment, ' + H.spec(v) + ', carries a Fries score of just ' + H.n1(v.combined.fries) +
         '. Investigators are attempting to determine how it got this far.' }; });
 
   R('spec-bad-burger-great-bun', 'specimens', { c: 5, pr: 8, r: 'uncommon' },
@@ -2485,7 +2486,7 @@
       var v = m.paired.official[0];
       return { title: 'REGISTER LEADER', body:
         H.spec(v) + ' holds the highest Composite Patty Index on record at ' + H.cpi(v) +
-        '. Specimen ' + v.specimen + ' remains the standard.' }; });
+        '. Establishment ' + v.specimen + ' remains the standard.' }; });
 
   R('spec-lowest-cpi', 'specimens', { c: 3, pr: 7, x: 'cpi-extreme' },
     function (m) { return m.paired.official.length >= 3 && lt(m.paired.cpi.min, 70); },
@@ -2522,7 +2523,7 @@
     function (m) { return m.paired.latest && num(m.paired.latest.cpi); },
     function (m, H) { var v = m.paired.latest;
       return { title: 'MOST RECENT CERTIFICATION', body:
-        'Specimen ' + v.specimen + ', ' + H.spec(v) + ', certified at ' + H.cpi(v) + ' CPI and entered the register at ' +
+        'Establishment ' + v.specimen + ', ' + H.spec(v) + ', certified at ' + H.cpi(v) + ' CPI and entered the register at ' +
         H.ord(v.rank) + ' of ' + m.counts.certified + '.' }; });
 
   R('spec-above-average-count', 'specimens', { c: 5, pr: 4 },
@@ -2530,7 +2531,7 @@
     function (m, H) {
       var above = m.certified.filter(function (v) { return v.cpi > m.paired.cpi.mean; }).length;
       return { title: 'UNNECESSARY STATISTICAL NOTICE', body:
-        above + ' of ' + m.counts.certified + ' certified specimens score above the register mean of ' + H.n1(m.paired.cpi.mean) +
+        above + ' of ' + m.counts.certified + ' certified establishments score above the register mean of ' + H.n1(m.paired.cpi.mean) +
         '. This is approximately what a mean is, and the Bureau has published it regardless.' }; });
 
   R('spec-value-vs-rank-mismatch', 'specimens', { c: 6, pr: 7, r: 'uncommon' },
@@ -2596,13 +2597,13 @@
     function (m, H) {
       var rate = (m.counts.certified / m.counts.burgers) * 100;
       return { title: 'CERTIFICATION RATE ADVISORY', body:
-        'Only ' + H.pct(rate) + ' of filed specimens have achieved certification (' + m.counts.certified + ' of ' + m.counts.burgers +
+        'Only ' + H.pct(rate) + ' of filed establishments have achieved certification (' + m.counts.certified + ' of ' + m.counts.burgers +
         '). The remainder await peer review and the Bureau is not naming anyone.' }; });
 
   R('reg-perfect-certification', 'regulatory', { c: 5, pr: 6 },
     function (m) { return m.counts.pending === 0 && m.counts.certified === m.counts.burgers && m.counts.burgers >= 5; },
     function (m, H) { return { title: 'COMMENDATION FOR PROCEDURAL COMPLIANCE', body:
-      'All ' + m.counts.burgers + ' specimens on file have completed peer review. ' +
+      'All ' + m.counts.burgers + ' establishments on file have completed peer review. ' +
       'A 100% certification rate. The Office of Auditor Accountability is briefly without purpose.' }; });
 
   R('reg-statistical-misconduct', 'regulatory', { c: 6, pr: 7, r: 'uncommon' },
@@ -2659,7 +2660,7 @@
     function (m, H) {
       var who = m.pendingFor.ryan.length >= m.pendingFor.devin.length ? 'ryan' : 'devin';
       var n = Math.max(m.pendingFor.ryan.length, m.pendingFor.devin.length);
-      if (!n) return { title: 'COMPLIANCE NOTICE', body: 'Specimens remain pending peer review.' };
+      if (!n) return { title: 'COMPLIANCE NOTICE', body: 'Establishments remain pending peer review.' };
       return { title: 'COMPLIANCE NOTICE', body:
         H.name(who) + ' is the limiting factor on ' + n + ' ' + H.plural(n, 'certification') +
         '. The Bureau does not issue penalties and has occasionally regretted that.' }; });
@@ -2716,7 +2717,7 @@
     function (m, H) {
       var n = m.certified.filter(function (v) { return v.combined.bun > v.combined.patty; }).length;
       return { title: 'FORMAL FINDING: STRUCTURAL INVERSION', body:
-        'On ' + n + ' certified specimens, the bun outperformed the patty. ' +
+        'On ' + n + ' certified establishments, the bun outperformed the patty. ' +
         'The Bureau has begun to suspect that regional bakeries are outcompeting regional kitchens.' }; });
 
   R('reg-warning-extreme-scores', 'regulatory', { a: 5, pr: 6 },
@@ -2742,7 +2743,7 @@
     function (m) { return m.paired.streaks.sweeps.longest >= 3; },
     function (m, H) { return { title: 'INVESTIGATION OPENED', body:
       'The register contains a run of ' + m.paired.streaks.sweeps.longest +
-      ' consecutive specimens on which one auditor out-scored the other in every category. ' +
+      ' consecutive establishments on which one auditor out-scored the other in every category. ' +
       'The Office has opened an investigation and assigned it to itself.' }; });
 
   R('reg-unnecessary-notice-1', 'regulatory', { c: 3, pr: 3 },
@@ -2763,18 +2764,18 @@
   R('reg-unnecessary-notice-3', 'regulatory', { c: 4, pr: 3 },
     function (m) { return m.counts.restaurants >= 2; },
     function (m, H) { return { title: 'UNNECESSARY STATISTICAL NOTICE', body:
-      'The register spans ' + m.counts.restaurants + ' establishments and ' + m.counts.certified +
-      ' certified specimens, a ratio of ' + H.n2(m.counts.certified / m.counts.restaurants) +
+      'The register spans ' + m.counts.establishments + ' establishments and ' + m.counts.audits +
+      ' filed audits, a ratio of ' + H.n2(m.counts.audits / m.counts.establishments) +
       ' hamburgers per establishment. No decision depends on this figure.' }; });
 
   R('reg-mathematically-true', 'regulatory', { c: 2, pr: 3, r: 'uncommon' },
     function (m) { return m.counts.certified >= 2; },
     function (m, H) { return { title: 'OBSERVATIONAL FINDING', body:
-      'Every certified specimen in the register has been examined by exactly two auditors. ' +
+      'Every certified establishment in the register has been examined by exactly two auditors. ' +
       'This is required for certification, which makes the observation flawless and useless in equal measure.' }; },
     function (m, H) { return { title: 'OBSERVATIONAL FINDING', body:
-      'The Composite Patty Index of every certified specimen falls between 0.0 and 100.0. ' +
-      'The Bureau has verified this across all ' + m.counts.certified + ' specimens and found no exceptions.' }; });
+      'The Composite Patty Index of every certified establishment falls between 0.0 and 100.0. ' +
+      'The Bureau has verified this across all ' + m.counts.certified + ' establishments and found no exceptions.' }; });
 
   R('reg-hearing-scheduled', 'regulatory', { c: 5, pr: 6, r: 'uncommon' },
     function (m) { return m.paired.biggestInversionValue >= 4; },
@@ -2787,7 +2788,7 @@
   R('reg-audit-trail-notice', 'regulatory', { c: 3, pr: 4 },
     function (m) { return m.paired.first && m.paired.latest && m.paired.first.id !== m.paired.latest.id; },
     function (m, H) { return { title: 'RECORDS RETENTION NOTICE', body:
-      'The Bureau maintains a complete audit trail from specimen ' + m.paired.first.specimen + ' to ' + m.paired.latest.specimen +
+      'The Bureau maintains a complete audit trail from establishment ' + m.paired.first.specimen + ' to ' + m.paired.latest.specimen +
       '. No filing has ever been amended, withdrawn, or successfully appealed.' }; });
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
@@ -2821,7 +2822,7 @@
   R('egg-cpi-exactly-50', 'rare', { c: 1, pr: 9, r: 'legendary' },
     function (m) { return m.certified.some(function (v) { return Math.abs(v.cpi - 50) < 0.001; }); },
     function (m, H) { return { title: 'PERFECT MEDIOCRITY', body:
-      'A specimen has recorded a Composite Patty Index of exactly 50.0 — the precise midpoint of the scale. ' +
+      'A establishment has recorded a Composite Patty Index of exactly 50.0 — the precise midpoint of the scale. ' +
       'The Bureau regards this as the most accurate description of a hamburger it has ever produced.' }; });
 
   R('egg-identical-vectors', 'rare', { c: 1, pr: 10, r: 'legendary' },
@@ -2963,7 +2964,7 @@
       m.certified.forEach(function (v) { var k = v.cpi.toFixed(1); counts[k] = (counts[k] || 0) + 1; });
       var hit = Object.keys(counts).filter(function (k) { return counts[k] >= 3; })[0];
       return { title: 'IMPROBABLE CONVERGENCE', body:
-        counts[hit] + ' separate specimens share an identical Composite Patty Index of ' + hit +
+        counts[hit] + ' separate establishments share an identical Composite Patty Index of ' + hit +
         '. The Bureau has checked the arithmetic and would prefer that you did not.' }; });
 
   R('egg-total-inversion', 'rare', { c: 5, pr: 10, r: 'legendary' },
@@ -2972,7 +2973,7 @@
       return m.paired.rankRows.every(function (r) { return r.ryanRank + r.devinRank === m.paired.n + 1; });
     },
     function (m, H) { return { title: 'COMPLETE ORDINAL INVERSION', body:
-      'Ryan\'s ranking of the register is the exact reverse of Devin\'s. Every specimen. ' +
+      'Ryan\'s ranking of the register is the exact reverse of Devin\'s. Every establishment. ' +
       'The Bureau has never recorded a more total failure of agreement and is, professionally speaking, impressed.' }; });
 
   R('egg-both-perfect-audit', 'rare', { c: 1, pr: 10, r: 'legendary' },
@@ -3009,7 +3010,7 @@
         H.name(who) + ' has awarded 0.0 in all six categories. ' +
         'The Bureau has never seen this and has scheduled a wellness check.' }; });
 
-  R('egg-same-score-every-specimen', 'rare', { c: 3, pr: 9, r: 'legendary' },
+  R('egg-same-score-every-establishment', 'rare', { c: 3, pr: 9, r: 'legendary' },
     function (m) {
       return ['ryan', 'devin'].some(function (k) {
         var a = m.auditors[k];
@@ -3019,7 +3020,7 @@
     function (m, H) {
       var who = m.auditors.ryan.weighted.range < 0.001 ? 'ryan' : 'devin';
       return { title: 'CONSTANT AUDITOR DETECTED', body:
-        H.name(who) + ' has produced an identical weighted score on every specimen he has ever audited. ' +
+        H.name(who) + ' has produced an identical weighted score on every establishment he has ever audited. ' +
         'The Bureau could replace him with a single number and lose no information whatsoever.' }; });
 
   R('egg-mirror-categories', 'rare', { c: 4, pr: 8, r: 'rare' },
@@ -3067,7 +3068,7 @@
       var v = m.certified.filter(function (x) { return K.every(function (c) { return x.absDeltas[c] >= 1; }); })[0];
       return { title: 'TOTAL EVALUATIVE COLLAPSE', body:
         'On ' + H.spec(v) + ', every single category shows a disagreement of a full point or more. ' +
-        'The Bureau cannot establish that both auditors ate the same hamburger.' }; });
+        'Both filings are on record at the same establishment. The Bureau is unable to account for the remainder.' }; });
 
   R('egg-perfect-half-point', 'rare', { c: 6, pr: 7, r: 'rare' },
     function (m) {
@@ -3081,5 +3082,382 @@
       return { title: 'GRID ADHERENCE DETECTED', body:
         'Every score ' + H.name(who) + ' has ever issued falls on a half-point. Not one odd tenth in ' +
         m.auditors[who].totalCells + ' opportunities. The Bureau supplied tenths and he has quietly declined them.' }; });
+
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+/* ===== BATCH 12 — BPS v2: LOCATIONS, CLASSES, SERVICE, COMPLIANCE, REVISITS =====
+   The ranked entity is the establishment, so these rules read the
+   evidence base underneath it: which branches were visited, what class
+   of establishment it is, how it was served, whether its audits are
+   current, and what happened when somebody went back. */
+(function (root) {
+  'use strict';
+  var isNode = (typeof module !== 'undefined' && module.exports);
+  var I = isNode ? require('./insights.js') : root.BPS.insights;
+  var S = isNode ? require('./scoring.js') : root.BPS.scoring;
+  var R = I.R, num = I.num, gt = I.gt, lt = I.lt, gte = I.gte;
+
+  function loc(m, min) {
+    return (m.activeLocations || []).filter(function (l) { return l.audits >= (min || 1); });
+  }
+  function busiest(m) {
+    return loc(m).slice().sort(function (a, b) { return b.audits - a.audits; })[0] || null;
+  }
+  function classesInUse(m) {
+    return (m.categoryIndex || []).filter(function (c) { return c.establishments > 0; });
+  }
+  function classesCertified(m, min) {
+    return (m.categoryIndex || []).filter(function (c) { return c.certified >= (min || 1); });
+  }
+
+  /* ---------- locations ---------- */
+
+  R('loc-coverage', 'locations', { c: 2, pr: 6, x: 'loc-coverage' },
+    function (m) { return m.counts.locations >= 3; },
+    function (m, H) { return { title: 'GEOGRAPHIC COVERAGE', body:
+      'The register now draws on ' + m.counts.locations + ' locations across the metro. ' +
+      'The Bureau describes this as fieldwork. Both auditors describe it as lunch.' }; },
+    function (m, H) { return { title: 'FIELD OPERATIONS SUMMARY', body:
+      'Audits have been filed from ' + m.counts.locations + ' distinct locations. No location has yet been ' +
+      'declared a region of special statistical interest, though the paperwork exists.' }; });
+
+  R('loc-single-location-register', 'locations', { c: 3, pr: 7, x: 'loc-coverage' },
+    function (m) { return m.counts.locations === 1 && m.counts.audits >= 4; },
+    function (m, H) { var l = busiest(m);
+      return { title: 'GEOGRAPHIC ADVISORY', body:
+        'Every audit on file was taken in ' + (l ? l.name : 'a single location') + '. The Bureau\'s findings are, ' +
+        'strictly speaking, a municipal opinion presented as a national one.' }; });
+
+  R('loc-busiest', 'locations', { c: 2, pr: 6 },
+    function (m) { var l = busiest(m); return !!l && l.audits >= 3; },
+    function (m, H) { var l = busiest(m);
+      return { title: 'FIELD OFFICE ACTIVITY', body:
+        l.name + ' has produced ' + l.audits + ' audits across ' + l.establishments + ' ' +
+        H.plural(l.establishments, 'establishment') + '. The Office has stopped short of opening a branch there.' }; });
+
+  R('loc-lopsided', 'locations', { c: 2, pr: 7, r: 'uncommon' },
+    function (m) {
+      return loc(m, 3).some(function (l) { return l.ryanAudits === 0 || l.devinAudits === 0; });
+    },
+    function (m, H) {
+      var l = loc(m, 3).filter(function (x) { return x.ryanAudits === 0 || x.devinAudits === 0; })[0];
+      var who = l.ryanAudits === 0 ? 'devin' : 'ryan';
+      return { title: 'UNILATERAL TERRITORY', body:
+        'All ' + l.audits + ' audits filed in ' + l.name + ' belong to ' + H.name(who) + '. ' +
+        H.other(who) + ' has never been. The Bureau is not calling this a jurisdiction, but it is behaving like one.' }; });
+
+  R('loc-custom-added', 'locations', { c: 1, pr: 5 },
+    function (m) { return (m.activeLocations || []).some(function (l) { return !l.isPreset; }); },
+    function (m, H) {
+      var added = (m.activeLocations || []).filter(function (l) { return !l.isPreset; });
+      return { title: 'REGISTER OF LOCATIONS AMENDED', body:
+        added.length + ' ' + H.plural(added.length, 'location') + ' not in the original schedule ' +
+        (added.length === 1 ? 'has' : 'have') + ' been entered by the auditing staff, beginning with ' +
+        added[0].name + '. The addition is permanent and shared. There is no removal form.' }; });
+
+  R('loc-multi-branch-establishment', 'locations', { c: 2, pr: 8, r: 'uncommon' },
+    function (m) { return m.certified.some(function (v) { return v.locations.length >= 2; }); },
+    function (m, H) {
+      var v = m.certified.filter(function (x) { return x.locations.length >= 2; })
+        .sort(function (a, b) { return b.locations.length - a.locations.length; })[0];
+      return { title: 'MULTI-BRANCH CERTIFICATION', body:
+        H.spec(v) + ' has been certified on evidence gathered at ' + H.where(v) + '. ' +
+        'The Bureau ranks the establishment, not the address, and declines to referee between them.' }; });
+
+  R('loc-branch-variance', 'locations', { c: 3, pr: 8, r: 'rare' },
+    function (m) {
+      return m.repeatRestaurants.some(function (r) { return r.view.locations.length >= 2 && gt(r.rangeCPI, 8); });
+    },
+    function (m, H) {
+      var r = m.repeatRestaurants.filter(function (x) { return x.view.locations.length >= 2 && gt(x.rangeCPI, 8); })[0];
+      return { title: 'BRANCH CONSISTENCY FAILURE', body:
+        r.name + ' varies by ' + H.n1(r.rangeCPI) + ' index points between individual visits to ' + H.where(r.view) +
+        '. The same name is doing considerably different work in different postcodes.' }; });
+
+  R('loc-branch-consistency', 'locations', { c: 3, pr: 7, r: 'uncommon' },
+    function (m) {
+      return m.repeatRestaurants.some(function (r) { return r.view.locations.length >= 2 && lt(r.rangeCPI, 3); });
+    },
+    function (m, H) {
+      var r = m.repeatRestaurants.filter(function (x) { return x.view.locations.length >= 2 && lt(x.rangeCPI, 3); })[0];
+      return { title: 'BRANCH UNIFORMITY COMMENDATION', body:
+        r.name + ' produced results within ' + H.n1(r.rangeCPI) + ' index points across ' + H.where(r.view) +
+        '. Somewhere in that organisation there is a laminated card, and it is being followed.' }; });
+
+  /* ---------- establishment classes ---------- */
+
+  R('cls-spread', 'classes', { c: 3, pr: 6, x: 'cls-summary' },
+    function (m) { return classesInUse(m).length >= 3; },
+    function (m, H) { return { title: 'CLASSIFICATION SUMMARY', body:
+      'The register covers ' + classesInUse(m).length + ' classes of establishment. The Bureau maintains that ' +
+      'the taxonomy is meaningful and has never been asked to defend it.' }; });
+
+  R('cls-monoculture', 'classes', { c: 4, pr: 7, x: 'cls-summary' },
+    function (m) {
+      var used = classesInUse(m);
+      return used.length === 1 && m.counts.certified >= 4;
+    },
+    function (m, H) { var c = classesInUse(m)[0];
+      return { title: 'CLASSIFICATION ADVISORY', body:
+        'Every establishment in the register is classified ' + c.label + '. The Bureau\'s conclusions about hamburgers ' +
+        'are therefore conclusions about ' + c.label.toLowerCase() + ', wearing a larger hat.' }; });
+
+  R('cls-strongest', 'classes', { c: 4, pr: 7, x: 'cls-standing' },
+    function (m) { return classesCertified(m, 2).length >= 2; },
+    function (m, H) {
+      var rows = classesCertified(m, 2).slice().sort(function (a, b) { return b.meanCPI - a.meanCPI; });
+      return { title: 'CLASS STANDINGS', body:
+        rows[0].label + ' leads the classification table at ' + H.n1(rows[0].meanCPI) + ', ahead of ' +
+        rows[rows.length - 1].label + ' at ' + H.n1(rows[rows.length - 1].meanCPI) +
+        '. The Bureau publishes this without recommendation.' }; });
+
+  R('cls-upset', 'classes', { c: 5, pr: 8, r: 'uncommon' },
+    function (m) {
+      var top = m.ranked[0];
+      return !!top && (top.category === 'fast-food' || top.category === 'food-truck');
+    },
+    function (m, H) { var top = m.ranked[0];
+      return { title: 'CLASSIFICATION UPSET', body:
+        'The register is currently led by ' + H.spec(top) + ', a ' + top.categoryLabel.toLowerCase() +
+        ' establishment, at ' + H.cpi(top) + '. Several more expensive rooms have been notified.' }; });
+
+  R('cls-fine-dining-penalty', 'classes', { c: 5, pr: 7, r: 'rare' },
+    function (m) {
+      var fine = m.certified.filter(function (v) { return v.category === 'fine-dining'; });
+      var rest = m.certified.filter(function (v) { return v.category !== 'fine-dining'; });
+      if (!fine.length || !rest.length) return false;
+      return m.stats.mean(fine.map(function (v) { return v.cpi; })) <
+             m.stats.mean(rest.map(function (v) { return v.cpi; }));
+    },
+    function (m, H) {
+      var fine = m.certified.filter(function (v) { return v.category === 'fine-dining'; });
+      var rest = m.certified.filter(function (v) { return v.category !== 'fine-dining'; });
+      var a = m.stats.mean(fine.map(function (v) { return v.cpi; }));
+      var b = m.stats.mean(rest.map(function (v) { return v.cpi; }));
+      return { title: 'UPSCALE PERFORMANCE NOTICE', body:
+        'Upscale establishments average ' + H.n1(a) + ' against ' + H.n1(b) + ' for everything else. ' +
+        'The Bureau has costed the difference and does not wish to discuss it.' }; });
+
+  R('cls-value-by-class', 'classes', { c: 5, pr: 6 },
+    function (m) { return classesCertified(m, 2).length >= 2; },
+    function (m, H) {
+      var rows = classesCertified(m, 2).map(function (c) {
+        var views = m.certified.filter(function (v) { return v.category === c.key; });
+        return { c: c, value: m.stats.mean(views.map(function (v) { return v.combined.value; })) };
+      }).filter(function (r) { return num(r.value); }).sort(function (a, b) { return b.value - a.value; });
+      if (rows.length < 2) return null;
+      return { title: 'VALUE BY CLASSIFICATION', body:
+        rows[0].c.label + ' returns the best Value scores at ' + H.n1(rows[0].value) + ', against ' +
+        H.n1(rows[rows.length - 1].value) + ' for ' + rows[rows.length - 1].c.label +
+        '. This is the least surprising finding the Office has ever issued.' }; });
+
+  /* ---------- service ---------- */
+
+  R('svc-register-standing', 'service', { c: 3, pr: 7, x: 'svc-standing' },
+    function (m) { return num(m.categoryBoard.service.mean); },
+    function (m, H) { var b = m.categoryBoard.service;
+      return { title: 'SERVICE ACROSS THE REGISTER', body:
+        'Service averages ' + H.n1(b.mean) + ' across the certified register, ranging from ' + H.n1(b.min) +
+        ' to ' + H.n1(b.max) + '. The category is worth ' + S.SCORING_WEIGHTS.service +
+        '% of the index and behaves as though it knows it.' }; });
+
+  R('svc-strongest-category', 'service', { c: 4, pr: 8, r: 'uncommon', x: 'svc-standing' },
+    function (m) { return m.strongestCat === 'service'; },
+    function (m, H) { return { title: 'SERVICE LEADS THE REGISTER', body:
+      'Service is currently the highest-scoring category the Bureau measures, at ' +
+      H.n1(m.categoryBoard.service.mean) + '. The hamburgers are being outperformed by the people handing them over.' }; });
+
+  R('svc-weakest-category', 'service', { c: 4, pr: 8, r: 'uncommon', x: 'svc-standing' },
+    function (m) { return m.weakestCat === 'service'; },
+    function (m, H) { return { title: 'SERVICE TRAILS THE REGISTER', body:
+      'Service is the weakest category in the register at ' + H.n1(m.categoryBoard.service.mean) +
+      '. The food is arriving. The Bureau makes no claim about the manner.' }; });
+
+  R('svc-speed-vs-friendliness', 'service', { c: 3, pr: 7 },
+    function (m) {
+      var a = m.auditors.ryan, b = m.auditors.devin;
+      return (a.n + b.n) >= 4 && num(a.cat.service.mean) && num(b.cat.service.mean);
+    },
+    function (m, H) {
+      var speed = [], friend = [];
+      ['ryan', 'devin'].forEach(function (k) {
+        m.auditors[k].views.forEach(function (v) {
+          speed.push(Number(v.scores[k].serviceSpeed));
+          friend.push(Number(v.scores[k].serviceFriendliness));
+        });
+      });
+      var s = m.stats.mean(speed), f = m.stats.mean(friend);
+      var lead = s > f ? 'Speed' : 'Friendliness';
+      return { title: 'SERVICE SUB-SCORE ANALYSIS', body:
+        'Speed averages ' + H.n1(s) + ' against Friendliness at ' + H.n1(f) + '. ' + lead +
+        ' carries the category. The Bureau reminds the public that both halves count equally.' }; });
+
+  R('svc-hostile-but-fast', 'service', { c: 2, pr: 8, r: 'rare' },
+    function (m) {
+      return ['ryan', 'devin'].some(function (k) {
+        return m.auditors[k].views.some(function (v) {
+          return Number(v.scores[k].serviceSpeed) - Number(v.scores[k].serviceFriendliness) >= 3;
+        });
+      });
+    },
+    function (m, H) {
+      var hit = null, who = null;
+      ['ryan', 'devin'].forEach(function (k) {
+        if (hit) return;
+        var f = m.auditors[k].views.filter(function (v) {
+          return Number(v.scores[k].serviceSpeed) - Number(v.scores[k].serviceFriendliness) >= 3;
+        })[0];
+        if (f) { hit = f; who = k; }
+      });
+      return { title: 'SERVICE POLARITY EVENT', body:
+        H.name(who) + ' recorded Speed ' + H.n1(hit.scores[who].serviceSpeed) + ' against Friendliness ' +
+        H.n1(hit.scores[who].serviceFriendliness) + ' at ' + H.spec(hit) + '. ' +
+        'The food was delivered at velocity and without affection.' }; });
+
+  R('svc-slow-but-lovely', 'service', { c: 2, pr: 8, r: 'rare' },
+    function (m) {
+      return ['ryan', 'devin'].some(function (k) {
+        return m.auditors[k].views.some(function (v) {
+          return Number(v.scores[k].serviceFriendliness) - Number(v.scores[k].serviceSpeed) >= 3;
+        });
+      });
+    },
+    function (m, H) {
+      var hit = null, who = null;
+      ['ryan', 'devin'].forEach(function (k) {
+        if (hit) return;
+        var f = m.auditors[k].views.filter(function (v) {
+          return Number(v.scores[k].serviceFriendliness) - Number(v.scores[k].serviceSpeed) >= 3;
+        })[0];
+        if (f) { hit = f; who = k; }
+      });
+      return { title: 'SERVICE POLARITY EVENT', body:
+        H.name(who) + ' recorded Friendliness ' + H.n1(hit.scores[who].serviceFriendliness) + ' against Speed ' +
+        H.n1(hit.scores[who].serviceSpeed) + ' at ' + H.spec(hit) + '. ' +
+        'Everyone was delightful. Nothing arrived.' }; });
+
+  R('svc-carried-establishment', 'service', { c: 3, pr: 8, r: 'uncommon' },
+    function (m) { return m.certified.some(function (v) { return v.best.combined === 'service'; }); },
+    function (m, H) {
+      var v = m.certified.filter(function (x) { return x.best.combined === 'service'; })[0];
+      return { title: 'CARRIED BY THE COUNTER', body:
+        'At ' + H.spec(v) + ', Service is the strongest category on the card at ' + H.n1(v.combined.service) +
+        '. The Bureau has recorded a hamburger being rescued by a person.' }; });
+
+  R('svc-sank-establishment', 'service', { c: 3, pr: 8, r: 'uncommon' },
+    function (m) { return m.certified.some(function (v) { return v.worst.combined === 'service'; }); },
+    function (m, H) {
+      var v = m.certified.filter(function (x) { return x.worst.combined === 'service'; })[0];
+      return { title: 'SERVICE DEFICIENCY FINDING', body:
+        'Service is the weakest category recorded at ' + H.spec(v) + ', at ' + H.n1(v.combined.service) +
+        '. Everything else was fine. Somebody was not.' }; });
+
+  R('svc-disputed', 'service', { c: 3, pr: 7 },
+    function (m) { return m.paired.mostContestedCat === 'service'; },
+    function (m, H) { return { title: 'SERVICE UNDER DISPUTE', body:
+      'Service is the category the two auditors disagree about most, averaging ' +
+      H.n2(m.paired.byCategory.service.meanAbs) + ' points of separation. ' +
+      'They are visiting the same establishments and meeting different staff.' }; });
+
+  R('svc-perfect-friendliness', 'service', { c: 1, pr: 6, r: 'uncommon' },
+    function (m) {
+      return m.auditViews.some(function (v) { return Number(v.scores[v.auditor].serviceFriendliness) === 10; });
+    },
+    function (m, H) {
+      var n = m.auditViews.filter(function (v) { return Number(v.scores[v.auditor].serviceFriendliness) === 10; }).length;
+      var v = m.auditViews.filter(function (x) { return Number(x.scores[x.auditor].serviceFriendliness) === 10; })[0];
+      return { title: 'COMMENDATION OF STAFF', body:
+        'A perfect Friendliness score has been awarded ' + H.times(n) + ', first by ' + H.name(v.auditor) +
+        ' at ' + H.spec(v) + '. The Bureau has no mechanism for passing this on.' }; });
+
+  /* ---------- schema compliance / recertification ---------- */
+
+  R('cmp-awaiting-recert', 'compliance', { c: 0, pr: 9, x: 'compliance-state' },
+    function (m) { return m.counts.awaitingRecertification >= 1; },
+    function (m, H) { return { title: 'SCHEMA COMPLIANCE NOTICE', body:
+      m.counts.awaitingRecertification + ' ' + H.plural(m.counts.awaitingRecertification, 'establishment') +
+      ' hold audits filed under a superseded scoring schema. Those figures are preserved in full and simply ' +
+      'no longer count toward certification until the missing fields are supplied.' }; },
+    function (m, H) { return { title: 'FORM REVISION IN EFFECT', body:
+      'The Bureau has revised the examination form. ' + m.counts.legacyAudits + ' filed ' +
+      H.plural(m.counts.legacyAudits, 'audit') + ' predate the revision. Nothing has been deleted, ' +
+      'nothing has been assumed, and no score has been set to zero on the Bureau\'s initiative.' }; });
+
+  R('cmp-fully-current', 'compliance', { c: 3, pr: 6, x: 'compliance-state' },
+    function (m) { return m.counts.legacyAudits === 0 && m.counts.audits >= 6; },
+    function (m, H) { return { title: 'SCHEMA COMPLIANCE CONFIRMED', body:
+      'All ' + m.counts.audits + ' audits on file satisfy the current scoring schema. The Office of Auditor ' +
+      'Accountability has confirmed this and found the experience unsatisfying.' }; });
+
+  R('cmp-recert-cost', 'compliance', { c: 1, pr: 8, r: 'uncommon' },
+    function (m) { return m.counts.awaitingRecertification >= 2 && m.counts.certified >= 1; },
+    function (m, H) { return { title: 'CERTIFICATION IMPACT ASSESSMENT', body:
+      'The current schema has returned ' + m.counts.awaitingRecertification + ' ' +
+      H.plural(m.counts.awaitingRecertification, 'establishment') + ' to Pending. Each returns to the official ' +
+      'rankings the moment both auditors hold one compliant audit for it. No prior score was harmed.' }; });
+
+  /* ---------- revisits and burger choice ---------- */
+
+  R('vis-revisit-count', 'visits', { c: 2, pr: 6, x: 'visit-summary' },
+    function (m) { return m.counts.revisits >= 1; },
+    function (m, H) { return { title: 'RETURN VISIT REGISTER', body:
+      m.counts.revisits + ' ' + H.plural(m.counts.revisits, 'establishment') + ' ' +
+      (m.counts.revisits === 1 ? 'has' : 'have') + ' been audited more than once by the same auditor. ' +
+      'Each additional filing moves the composite. The Bureau considers this the point.' }; });
+
+  R('vis-most-examined', 'visits', { c: 2, pr: 7 },
+    function (m) { return m.restaurants.length >= 1 && m.restaurants[0].count >= 3; },
+    function (m, H) { var r = m.restaurants[0];
+      return { title: 'ESTABLISHMENT UNDER SUSTAINED EXAMINATION', body:
+        r.name + ' now rests on ' + r.count + ' audits — ' + r.ryanVisits + ' from Ryan, ' + r.devinVisits +
+        ' from Devin — for a composite of ' + H.n1(r.meanCPI) + '. It is the best-evidenced entry in the register.' }; });
+
+  R('vis-same-burger', 'visits', { c: 2, pr: 6, x: 'burger-choice' },
+    function (m) { return m.paired.sameBurgerCount >= 1; },
+    function (m, H) { return { title: 'MATCHED SPECIMEN SELECTION', body:
+      'On ' + m.paired.sameBurgerCount + ' ' + H.plural(m.paired.sameBurgerCount, 'establishment') +
+      ' both auditors ordered the same burger. This is permitted, it is not required, and the Bureau ' +
+      'has resisted describing it as teamwork.' }; });
+
+  R('vis-divergent-burger', 'visits', { c: 2, pr: 6, x: 'burger-choice' },
+    function (m) {
+      return m.paired.n - m.paired.sameBurgerCount >= 1;
+    },
+    function (m, H) {
+      var n = m.paired.n - m.paired.sameBurgerCount;
+      return { title: 'DIVERGENT SPECIMEN SELECTION', body:
+        n + ' ' + H.plural(n, 'certification') + ' rest on two auditors ordering entirely different burgers. ' +
+        'The Bureau ranks the establishment, so this is valid, deliberate, and mildly upsetting to the statisticians.' }; });
+
+  R('vis-most-burgers', 'visits', { c: 2, pr: 6 },
+    function (m) { return m.views.some(function (v) { return v.burgers.length >= 3; }); },
+    function (m, H) {
+      var v = m.views.slice().sort(function (a, b) { return b.burgers.length - a.burgers.length; })[0];
+      return { title: 'MENU COVERAGE FINDING', body:
+        H.spec(v) + ' has been examined across ' + v.burgers.length + ' different burgers. ' +
+        'The Bureau now knows more about that menu than the establishment does.' }; });
+
+  R('vis-drift', 'visits', { c: 3, pr: 8, r: 'rare' },
+    function (m) {
+      return m.restaurants.some(function (r) { return r.count >= 3 && gt(r.rangeCPI, 10); });
+    },
+    function (m, H) {
+      var r = m.restaurants.filter(function (x) { return x.count >= 3 && gt(x.rangeCPI, 10); })[0];
+      return { title: 'VISIT-LEVEL INSTABILITY', body:
+        'Individual visits to ' + r.name + ' span ' + H.n1(r.rangeCPI) + ' index points, from ' +
+        H.n1(r.minCPI) + ' to ' + H.n1(r.maxCPI) + '. The composite of ' + H.n1(r.meanCPI) +
+        ' describes an establishment that has never actually happened.' }; });
+
+  R('vis-auditor-imbalance', 'visits', { c: 2, pr: 7, r: 'uncommon' },
+    function (m) {
+      return m.certified.some(function (v) { return Math.abs(v.auditCounts.ryan - v.auditCounts.devin) >= 2; });
+    },
+    function (m, H) {
+      var v = m.certified.filter(function (x) { return Math.abs(x.auditCounts.ryan - x.auditCounts.devin) >= 2; })[0];
+      var who = v.auditCounts.ryan > v.auditCounts.devin ? 'ryan' : 'devin';
+      return { title: 'EVIDENCE WEIGHTING NOTICE', body:
+        'At ' + H.spec(v) + ', ' + H.name(who) + ' has filed ' + Math.max(v.auditCounts.ryan, v.auditCounts.devin) +
+        ' audits to ' + H.other(who) + '\'s ' + Math.min(v.auditCounts.ryan, v.auditCounts.devin) +
+        '. Each auditor still contributes exactly half the composite. The Bureau is not a democracy of appetite.' }; });
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);

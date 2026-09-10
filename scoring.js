@@ -9,39 +9,85 @@
    ------------------
    Every function here returns FULL PRECISION. Nothing rounds.
    Rounding happens only in formatScore() / formatCPI(), which exist
-   solely for display. Ranking, analytics and the insight engine all
-   consume the raw values, so a rounded figure on screen can never
-   influence an ordering or a downstream statistic.
+   solely for display. Ranking, analytics, records and the insight
+   engine all consume the raw values, so a rounded figure on screen
+   can never influence an ordering or a downstream statistic.
+
+   RANKED ENTITY
+   -------------
+   The ranked entity is the ESTABLISHMENT. An establishment holds many
+   audits; each audit is one auditor's visit — one burger, at one
+   location, on one date. Neither the burger nor the branch is ranked.
 
    CERTIFICATION CONTRACT
    ----------------------
    Certification describes AUDIT COMPLETENESS, never score quality.
-   A burger both auditors have scored is CERTIFIED, however bad it is.
+   An establishment is CERTIFIED once BOTH auditors hold at least one
+   audit that satisfies the CURRENT scoring schema. They need not have
+   eaten the same burger, visited the same branch, or filed together.
+
+   SCHEMA VERSIONING
+   -----------------
+   When the scoring schema gains a requirement, historical audits are
+   preserved untouched and simply stop counting as current. They are
+   never deleted and never silently zero-filled: the establishment
+   returns to Pending until each auditor has one compliant audit again.
    ============================================================= */
 (function (root, factory) {
   'use strict';
-  var api = factory();
+  var api = factory(root);
   root.BPS = root.BPS || {};
   root.BPS.scoring = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
 
-  /* ---------- Categories ---------- */
+  var T = (typeof module !== 'undefined' && module.exports)
+    ? require('./taxonomy.js')
+    : root.BPS.taxonomy;
+
+  /* =============================================================
+     SCHEMA VERSION
+     v1  six categories, one burger per record
+     v2  adds Service (Speed + Friendliness) and a required location
+     ============================================================= */
+  var SCHEMA_VERSION = 2;
+  var LEGACY_SCHEMA_VERSION = 1;
+
+  /* ---------- Categories ----------
+     Six are entered directly. Service is DERIVED from two sub-scores
+     and is never typed in as a single figure. */
   var CATEGORIES = [
     { key: 'patty',         label: 'Patty',                 column: 'patty' },
     { key: 'overallFlavor', label: 'Overall Flavor',        column: 'overall_flavor' },
     { key: 'bun',           label: 'Bun',                   column: 'bun' },
     { key: 'fries',         label: 'Fries',                 column: 'fries' },
     { key: 'value',         label: 'Value',                 column: 'value' },
-    { key: 'condiments',    label: 'Condiments / Toppings', column: 'condiments' }
+    { key: 'condiments',    label: 'Condiments / Toppings', column: 'condiments' },
+    { key: 'service',       label: 'Service',               column: null, derived: true }
+  ];
+
+  /* The two halves of Service. Each is scored 0.0–10.0 in tenths. */
+  var SERVICE_SUBSCORES = [
+    { key: 'serviceSpeed',        label: 'Speed',        column: 'service_speed' },
+    { key: 'serviceFriendliness', label: 'Friendliness', column: 'service_friendliness' }
   ];
 
   var CATEGORY_KEYS = CATEGORIES.map(function (c) { return c.key; });
+  var DIRECT_CATEGORIES = CATEGORIES.filter(function (c) { return !c.derived; });
+  var DIRECT_KEYS = DIRECT_CATEGORIES.map(function (c) { return c.key; });
+  var SERVICE_KEYS = SERVICE_SUBSCORES.map(function (c) { return c.key; });
+  /* Everything an auditor physically enters: six categories + two sub-scores. */
+  var INPUT_KEYS = DIRECT_KEYS.concat(SERVICE_KEYS);
+  /* Every persisted numeric column, in a stable order. */
+  var SCORE_COLUMNS = DIRECT_CATEGORIES.concat(SERVICE_SUBSCORES);
 
   function categoryLabel(key) {
     for (var i = 0; i < CATEGORIES.length; i++) {
       if (CATEGORIES[i].key === key) return CATEGORIES[i].label;
+    }
+    for (var j = 0; j < SERVICE_SUBSCORES.length; j++) {
+      if (SERVICE_SUBSCORES[j].key === key) return 'Service ' + SERVICE_SUBSCORES[j].label;
     }
     return key;
   }
@@ -51,12 +97,13 @@
      no floating-point drift, so "weights total 100%" is an exact check.
      THE single source of truth. Nothing else contains a percentage. */
   var SCORING_WEIGHTS = {
-    patty:         30,
+    patty:         25,
     overallFlavor: 25,
     bun:           15,
     fries:         10,
     value:         10,
-    condiments:    10
+    condiments:     5,
+    service:       10
   };
 
   var WEIGHT_TOTAL = 100;
@@ -144,33 +191,130 @@
     return Math.abs(n * 10 - Math.round(n * 10)) < 1e-9;
   }
 
+  /* A derived mean is a real number on the scale but need not land on a
+     tenth, so aggregates are checked with this looser test. */
+  function isOnScale(value) {
+    if (value == null || value === '') return false;
+    var n = Number(value);
+    return isFinite(n) && n >= SCALE.min && n <= SCALE.max;
+  }
+
+  /* ---------- Service ----------
+     Service = (Speed + Friendliness) / 2, full precision.
+     Null — never zero — when either half is absent. */
+  function serviceScore(scores) {
+    if (!scores) return null;
+    var speed = scores.serviceSpeed;
+    var friendliness = scores.serviceFriendliness;
+    if (isOnScale(speed) && isOnScale(friendliness)) {
+      return (Number(speed) + Number(friendliness)) / 2;
+    }
+    /* An aggregate carries `service` directly; a raw audit never does. */
+    return isOnScale(scores.service) ? Number(scores.service) : null;
+  }
+
+  function hasServiceDetail(scores) {
+    return !!scores && isScored(scores.serviceSpeed) && isScored(scores.serviceFriendliness);
+  }
+
+  /** Resolve one scoring category from a score set. Service is derived. */
+  function categoryValue(scores, key) {
+    if (!scores) return null;
+    if (key === 'service') return serviceScore(scores);
+    return isOnScale(scores[key]) ? Number(scores[key]) : null;
+  }
+
+  /** A copy carrying the derived `service` value alongside the inputs. */
+  function withService(scores) {
+    if (!scores) return null;
+    var out = {};
+    Object.keys(scores).forEach(function (k) { out[k] = scores[k]; });
+    out.service = serviceScore(scores);
+    return out;
+  }
+
+  /** Every scoring category resolvable — enough to compute a weighted score. */
   function isCompleteScoreSet(scores) {
     if (!scores) return false;
-    return CATEGORY_KEYS.every(function (key) { return isScored(scores[key]); });
+    return CATEGORY_KEYS.every(function (key) { return categoryValue(scores, key) != null; });
+  }
+
+  /** Entered by hand, on the tenths, under the CURRENT scoring schema. */
+  function isCurrentSchemaScores(scores) {
+    if (!scores) return false;
+    return DIRECT_KEYS.every(function (key) { return isScored(scores[key]); }) && hasServiceDetail(scores);
   }
 
   function countScored(scores) {
     if (!scores) return 0;
-    return CATEGORY_KEYS.filter(function (key) { return isScored(scores[key]); }).length;
+    return INPUT_KEYS.filter(function (key) { return isScored(scores && scores[key]); }).length;
+  }
+
+  /* =============================================================
+     AUDIT COMPLIANCE
+
+     Canonical in-app audit:
+       { id, establishmentId, auditorKey, auditorId, burger, locationId,
+         locationName, schemaVersion, createdAt, updatedAt,
+         patty, overallFlavor, bun, fries, value, condiments,
+         serviceSpeed, serviceFriendliness, service }
+
+     An audit counts toward certification, ranking and records only
+     when it satisfies EVERY current requirement. Legacy audits stay on
+     file, keep their scores, and are simply not current.
+     ============================================================= */
+  var REQUIREMENTS = [
+    { key: 'scores',   label: 'Category scores',
+      test: function (a) { return !!a && DIRECT_KEYS.every(function (k) { return isScored(a[k]); }); } },
+    { key: 'service',  label: 'Service (Speed & Friendliness)',
+      test: function (a) { return hasServiceDetail(a); } },
+    { key: 'location', label: 'Location',
+      test: function (a) { return !!(a && a.locationId); } },
+    { key: 'burger',   label: 'Burger examined',
+      test: function (a) { return !!(a && String(a.burger || '').trim()); } }
+  ];
+
+  function missingRequirements(audit) {
+    return REQUIREMENTS.filter(function (r) { return !r.test(audit); })
+      .map(function (r) { return r.key; });
+  }
+
+  function missingRequirementLabels(audit) {
+    return REQUIREMENTS.filter(function (r) { return !r.test(audit); })
+      .map(function (r) { return r.label; });
+  }
+
+  function auditIsCompliant(audit) {
+    return missingRequirements(audit).length === 0;
+  }
+
+  /* Legacy audits are recognised by what they LACK, not by their label:
+     a row may declare the current version and still be missing a field,
+     and the missing field is what decides. */
+  function auditSchemaVersion(audit) {
+    if (auditIsCompliant(audit)) return SCHEMA_VERSION;
+    var declared = Number(audit && audit.schemaVersion);
+    if (!isFinite(declared) || declared < LEGACY_SCHEMA_VERSION) return LEGACY_SCHEMA_VERSION;
+    return Math.min(declared, SCHEMA_VERSION - 1);
   }
 
   /* ---------- Core calculations (full precision) ---------- */
 
   /**
-   * One auditor's weighted personal score on the 0.0–10.0 scale.
+   * One auditor's weighted score for a single score set, 0.0–10.0.
    * NOT rounded — callers format for display.
    */
   function calculateWeightedReviewerScore(scores) {
     if (!isCompleteScoreSet(scores)) return null;
     var weighted = CATEGORY_KEYS.reduce(function (sum, key) {
-      return sum + Number(scores[key]) * SCORING_WEIGHTS[key];
+      return sum + categoryValue(scores, key) * SCORING_WEIGHTS[key];
     }, 0);
     return weighted / WEIGHT_TOTAL;
   }
 
   /**
    * Composite Patty Index, 0.0–100.0, from the two UNROUNDED weighted
-   * scores. Null until both audits are complete.
+   * scores. Null until both sides are complete.
    */
   function calculateCPI(ryanScores, devinScores) {
     var ryan = calculateWeightedReviewerScore(ryanScores);
@@ -183,90 +327,135 @@
   function calculateCombinedCategoryAverages(ryanScores, devinScores) {
     var out = {};
     CATEGORY_KEYS.forEach(function (key) {
-      var r = ryanScores && ryanScores[key];
-      var d = devinScores && devinScores[key];
-      out[key] = (isScored(r) && isScored(d)) ? (Number(r) + Number(d)) / 2 : null;
+      var r = categoryValue(ryanScores, key);
+      var d = categoryValue(devinScores, key);
+      out[key] = (r != null && d != null) ? (r + d) / 2 : null;
     });
     return out;
   }
 
-  /* ---------- Burger shape helpers ----------
-     Canonical in-app burger:
-       { id, specimenNumber, restaurant, burger, createdBy, createdAt,
-         audits: { ryan: <scores|null>, devin: <scores|null> } }
-     An audit carries the six category keys plus createdAt / updatedAt. */
-
-  function auditOf(burger, auditorKey) {
-    return (burger && burger.audits && burger.audits[auditorKey]) || null;
+  /**
+   * The auditor's establishment-level profile: the per-field mean of
+   * every compliant audit they hold there, at full precision.
+   *
+   * Because the weighting is linear, the weighted score of the mean is
+   * identical to the mean of the weighted scores — so a repeat visit
+   * moves the establishment composite exactly as far as it should.
+   */
+  function meanScoreSet(audits) {
+    var list = (audits || []).filter(auditIsCompliant);
+    if (!list.length) return null;
+    var out = {};
+    INPUT_KEYS.forEach(function (key) {
+      var total = list.reduce(function (sum, a) { return sum + Number(a[key]); }, 0);
+      out[key] = total / list.length;
+    });
+    out.service = serviceScore(out);
+    return out;
   }
 
-  function hasAudit(burger, auditorKey) {
-    return isCompleteScoreSet(auditOf(burger, auditorKey));
+  /* =============================================================
+     ESTABLISHMENT SHAPE HELPERS
+
+     Canonical in-app establishment:
+       { id, fileNumber, name, nameKey, category, createdBy, createdAt,
+         updatedAt, audits: [ ...audit ] }
+     ============================================================= */
+
+  function auditsOf(establishment, auditorKey) {
+    var list = (establishment && establishment.audits) || [];
+    return auditorKey ? list.filter(function (a) { return a.auditorKey === auditorKey; }) : list.slice();
   }
 
-  function weightedFor(burger, auditorKey) {
-    return calculateWeightedReviewerScore(auditOf(burger, auditorKey));
+  function compliantAuditsOf(establishment, auditorKey) {
+    return auditsOf(establishment, auditorKey).filter(auditIsCompliant);
   }
 
-  /** Certification = both audits filed. Never score-dependent. */
-  function isCertified(burger) {
-    return AUDITOR_KEYS.every(function (k) { return hasAudit(burger, k); });
+  function legacyAuditsOf(establishment, auditorKey) {
+    return auditsOf(establishment, auditorKey).filter(function (a) { return !auditIsCompliant(a); });
   }
 
-  function auditCount(burger) {
-    return AUDITOR_KEYS.filter(function (k) { return hasAudit(burger, k); }).length;
+  /** The aggregate score set this auditor's compliant audits produce. */
+  function profileOf(establishment, auditorKey) {
+    return meanScoreSet(compliantAuditsOf(establishment, auditorKey));
   }
 
-  /** The auditor who still owes an audit, or null. */
-  function missingAuditor(burger) {
-    var missing = AUDITOR_KEYS.filter(function (k) { return !hasAudit(burger, k); });
+  /* Retained name: "does this auditor hold a current audit here?" */
+  function hasAudit(establishment, auditorKey) {
+    return compliantAuditsOf(establishment, auditorKey).length > 0;
+  }
+
+  function weightedFor(establishment, auditorKey) {
+    return calculateWeightedReviewerScore(profileOf(establishment, auditorKey));
+  }
+
+  /** Certification = both auditors hold a current-schema audit. */
+  function isCertified(establishment) {
+    return AUDITOR_KEYS.every(function (k) { return hasAudit(establishment, k); });
+  }
+
+  /** Total compliant audits on file for this establishment. */
+  function auditCount(establishment) {
+    return compliantAuditsOf(establishment).length;
+  }
+
+  /** The auditor who still owes a current audit, or null. */
+  function missingAuditor(establishment) {
+    var missing = AUDITOR_KEYS.filter(function (k) { return !hasAudit(establishment, k); });
     return missing.length === 1 ? missing[0] : null;
   }
 
   var STATUS = {
     CERTIFIED: { key: 'certified', label: 'Certified' },
     PENDING:   { key: 'pending',   label: 'Pending Peer Review' },
-    EMPTY:     { key: 'empty',     label: 'No Audits Filed' }
+    EMPTY:     { key: 'empty',     label: 'No Current Audits' }
   };
 
-  function statusOf(burger) {
-    var n = auditCount(burger);
+  function statusOf(establishment) {
+    var n = AUDITOR_KEYS.filter(function (k) { return hasAudit(establishment, k); }).length;
     if (n === AUDITOR_KEYS.length) return STATUS.CERTIFIED;
     if (n === 0) return STATUS.EMPTY;
     return STATUS.PENDING;
   }
 
-  /** Official CPI. Null unless certified — a pending specimen has none. */
-  function cpiOf(burger) {
-    if (!isCertified(burger)) return null;
-    return calculateCPI(auditOf(burger, 'ryan'), auditOf(burger, 'devin'));
+  /** Official CPI. Null unless certified — a pending establishment has none. */
+  function cpiOf(establishment) {
+    if (!isCertified(establishment)) return null;
+    return calculateCPI(profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
   }
 
-  function combinedOf(burger) {
-    return calculateCombinedCategoryAverages(auditOf(burger, 'ryan'), auditOf(burger, 'devin'));
+  function combinedOf(establishment) {
+    return calculateCombinedCategoryAverages(
+      profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
+  }
+
+  /** Audits on file that predate the current schema and could be updated. */
+  function recertifiableAudits(establishment, auditorKey) {
+    return legacyAuditsOf(establishment, auditorKey);
   }
 
   /* ---------- Rankings ----------
-     Official rankings contain CERTIFIED specimens only, ordered by raw
-     (unrounded) CPI. Array.prototype.sort is stable, so genuinely equal
-     raw values keep their incoming order. */
-  function certifiedOnly(burgers) {
-    return (burgers || []).filter(isCertified);
+     Official rankings contain CERTIFIED establishments only, ordered by
+     raw (unrounded) CPI. Array.prototype.sort is stable, so genuinely
+     equal raw values keep their incoming order. */
+  function certifiedOnly(establishments) {
+    return (establishments || []).filter(isCertified);
   }
 
-  function rankBurgers(burgers) {
-    return certifiedOnly(burgers).slice().sort(function (a, b) {
+  function rankEstablishments(establishments) {
+    return certifiedOnly(establishments).slice().sort(function (a, b) {
       return cpiOf(b) - cpiOf(a);
     });
   }
 
   /**
-   * One auditor's personal ranking, using only that auditor's weighted
-   * score. Includes every burger they have audited, certified or not.
+   * One auditor's personal ranking, using only that auditor's aggregate
+   * weighted score. Includes every establishment they have audited under
+   * the current schema, certified or not.
    */
-  function personalRanking(burgers, auditorKey) {
-    return (burgers || [])
-      .filter(function (b) { return hasAudit(b, auditorKey); })
+  function personalRanking(establishments, auditorKey) {
+    return (establishments || [])
+      .filter(function (e) { return hasAudit(e, auditorKey); })
       .slice()
       .sort(function (a, b) {
         return weightedFor(b, auditorKey) - weightedFor(a, auditorKey);
@@ -274,32 +463,50 @@
   }
 
   /** 1-based official rank, or null when not certified. */
-  function officialRankOf(burgers, burgerId) {
-    var ranked = rankBurgers(burgers);
+  function officialRankOf(establishments, establishmentId) {
+    var ranked = rankEstablishments(establishments);
     for (var i = 0; i < ranked.length; i++) {
-      if (ranked[i].id === burgerId) return i + 1;
+      if (ranked[i].id === establishmentId) return i + 1;
     }
     return null;
   }
 
-  function personalRankOf(burgers, auditorKey, burgerId) {
-    var ranked = personalRanking(burgers, auditorKey);
+  function personalRankOf(establishments, auditorKey, establishmentId) {
+    var ranked = personalRanking(establishments, auditorKey);
     for (var i = 0; i < ranked.length; i++) {
-      if (ranked[i].id === burgerId) return i + 1;
+      if (ranked[i].id === establishmentId) return i + 1;
     }
     return null;
   }
 
-  /** Mean CPI across certified specimens, full precision. */
-  function meanCPI(burgers) {
-    var values = certifiedOnly(burgers).map(cpiOf).filter(function (v) { return v != null; });
+  /** Mean CPI across certified establishments, full precision. */
+  function meanCPI(establishments) {
+    var values = certifiedOnly(establishments).map(cpiOf).filter(function (v) { return v != null; });
     if (!values.length) return null;
     return values.reduce(function (a, b) { return a + b; }, 0) / values.length;
   }
 
+  /** A copy of the establishment holding only audits the filter admits. */
+  function restrictToAudits(establishment, predicate) {
+    var copy = {};
+    Object.keys(establishment).forEach(function (k) { copy[k] = establishment[k]; });
+    copy.audits = (establishment.audits || []).filter(predicate);
+    return copy;
+  }
+
   return {
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    LEGACY_SCHEMA_VERSION: LEGACY_SCHEMA_VERSION,
+
     CATEGORIES: CATEGORIES,
     CATEGORY_KEYS: CATEGORY_KEYS,
+    DIRECT_CATEGORIES: DIRECT_CATEGORIES,
+    DIRECT_KEYS: DIRECT_KEYS,
+    SERVICE_SUBSCORES: SERVICE_SUBSCORES,
+    SERVICE_KEYS: SERVICE_KEYS,
+    INPUT_KEYS: INPUT_KEYS,
+    SCORE_COLUMNS: SCORE_COLUMNS,
+    REQUIREMENTS: REQUIREMENTS,
     categoryLabel: categoryLabel,
     SCORING_WEIGHTS: SCORING_WEIGHTS,
     WEIGHT_TOTAL: WEIGHT_TOTAL,
@@ -321,14 +528,30 @@
     weightsTotal: weightsTotal,
     weightsAreValid: weightsAreValid,
     isScored: isScored,
+    isOnScale: isOnScale,
+    serviceScore: serviceScore,
+    hasServiceDetail: hasServiceDetail,
+    categoryValue: categoryValue,
+    withService: withService,
     isCompleteScoreSet: isCompleteScoreSet,
+    isCurrentSchemaScores: isCurrentSchemaScores,
     countScored: countScored,
+
+    missingRequirements: missingRequirements,
+    missingRequirementLabels: missingRequirementLabels,
+    auditIsCompliant: auditIsCompliant,
+    auditSchemaVersion: auditSchemaVersion,
 
     calculateWeightedReviewerScore: calculateWeightedReviewerScore,
     calculateCPI: calculateCPI,
     calculateCombinedCategoryAverages: calculateCombinedCategoryAverages,
+    meanScoreSet: meanScoreSet,
 
-    auditOf: auditOf,
+    auditsOf: auditsOf,
+    compliantAuditsOf: compliantAuditsOf,
+    legacyAuditsOf: legacyAuditsOf,
+    recertifiableAudits: recertifiableAudits,
+    profileOf: profileOf,
     hasAudit: hasAudit,
     weightedFor: weightedFor,
     isCertified: isCertified,
@@ -339,10 +562,11 @@
     combinedOf: combinedOf,
 
     certifiedOnly: certifiedOnly,
-    rankBurgers: rankBurgers,
+    rankEstablishments: rankEstablishments,
     personalRanking: personalRanking,
     officialRankOf: officialRankOf,
     personalRankOf: personalRankOf,
-    meanCPI: meanCPI
+    meanCPI: meanCPI,
+    restrictToAudits: restrictToAudits
   };
 });

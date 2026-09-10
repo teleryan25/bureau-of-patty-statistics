@@ -46,17 +46,19 @@
     </span>
   </div>
 
-  <!-- Four workflows. Equal file-tab cells, no hamburger, no native tab bar. -->
+  <!-- Five workflows. Equal file-tab cells, no hamburger, no native tab bar. -->
   <nav class="shell viewnav" aria-label="Primary">
-    <div class="viewnav__track" role="tablist">
+    <div class="viewnav__track viewnav__track--five" role="tablist">
       <button class="viewnav__btn" id="tab-rankings" type="button" role="tab" aria-selected="true"
               aria-controls="view-rankings" data-view="rankings">Rankings</button>
       <button class="viewnav__btn" id="tab-pending" type="button" role="tab" aria-selected="false"
               aria-controls="view-pending" data-view="pending">Pending<span class="viewnav__badge" id="pending-badge" hidden>0</span></button>
       <button class="viewnav__btn" id="tab-evaluate" type="button" role="tab" aria-selected="false"
-              aria-controls="view-evaluate" data-view="evaluate">Evaluate</button>
+              aria-controls="view-evaluate" data-view="evaluate">File</button>
+      <button class="viewnav__btn" id="tab-records" type="button" role="tab" aria-selected="false"
+              aria-controls="view-records" data-view="records">Records</button>
       <button class="viewnav__btn" id="tab-insights" type="button" role="tab" aria-selected="false"
-              aria-controls="view-insights" data-view="insights">Insights</button>
+              aria-controls="view-insights" data-view="insights">Findings</button>
     </div>
   </nav>
 </header>
@@ -122,8 +124,9 @@
         <p class="intro__note">Established to collect, verify, and publish standardized burger performance data in the public interest. All findings are provisional pending peer review.</p>
 
         <dl class="stats" aria-label="Register statistics">
-          <div class="stat"><dt class="stat__label">Specimens on File</dt><dd class="stat__value" data-stat="specimens">0</dd></div>
+          <div class="stat"><dt class="stat__label">Certified</dt><dd class="stat__value" data-stat="specimens">0</dd></div>
           <div class="stat"><dt class="stat__label">Mean Index</dt><dd class="stat__value" data-stat="mean">&mdash;</dd></div>
+          <div class="stat"><dt class="stat__label">Audits Filed</dt><dd class="stat__value" data-stat="audits">0</dd></div>
           <div class="stat"><dt class="stat__label">Pending</dt><dd class="stat__value" data-stat="pending">0</dd></div>
         </dl>
       </div>
@@ -133,19 +136,38 @@
       <div class="shell section">
         <div class="section__head">
           <p class="label label--accent">Section II</p>
-          <h2 class="section__title">Official Burger Rankings</h2>
-          <p class="section__meta">Certified specimens only, sorted by Composite Patty Index</p>
+          <h2 class="section__title">Official Establishment Rankings</h2>
+          <p class="section__meta">Certified establishments only, sorted by Composite Patty Index</p>
         </div>
+
+        <!-- Location and class filters. Both may be applied together. -->
+        <div class="filters" id="rankings-filters">
+          <div class="filters__field">
+            <label class="filters__label" for="filter-location">Location</label>
+            <select class="input input--select" id="filter-location">
+              <option value="">All Locations</option>
+            </select>
+          </div>
+          <div class="filters__field">
+            <label class="filters__label" for="filter-category">Establishment Class</label>
+            <select class="input input--select" id="filter-category">
+              <option value="">All Categories</option>
+            </select>
+          </div>
+          <button class="linkbtn filters__clear" type="button" id="filter-clear" hidden>Clear filters</button>
+          <p class="filters__note" id="filter-note" hidden></p>
+        </div>
+
         <ol class="rankings" id="rankings-list" hidden></ol>
         <div class="empty" id="rankings-empty" hidden>
           <p class="empty__stamp">No Data</p>
-          <h3 class="empty__title">No certified specimens.</h3>
-          <p class="empty__text">A specimen enters the Official Rankings once both auditors have filed. Until then it awaits peer review.</p>
+          <h3 class="empty__title" id="rankings-empty-title">No certified establishments.</h3>
+          <p class="empty__text" id="rankings-empty-text">An establishment enters the Official Rankings once both auditors hold at least one current-schema audit for it. They need not have eaten the same burger, or visited the same branch.</p>
         </div>
       </div>
       <div class="actionbar">
         <div class="shell">
-          <button class="btn btn--primary btn--block" type="button" data-goto="evaluate">Evaluate a Burger</button>
+          <button class="btn btn--primary btn--block" type="button" data-goto="evaluate">File an Audit</button>
         </div>
       </div>
     </div>
@@ -159,15 +181,24 @@
       <div class="shell intro intro--compact">
         <p class="label label--accent">Section III</p>
         <h1 class="intro__title">Pending <span class="accent-rule">Peer Review</span></h1>
-        <p class="intro__sub">Specimens filed by one auditor and awaiting the other.</p>
+        <p class="intro__sub">Establishments holding a current audit from only one auditor.</p>
       </div>
     </div>
     <div class="band band--light">
       <div class="shell section">
-        <div id="pending-mine-wrap" hidden>
+        <div id="pending-recert-wrap" hidden>
           <div class="section__head">
+            <p class="label label--accent">Schema Revision</p>
+            <h2 class="section__title">Recertification Required</h2>
+            <p class="section__meta" id="pending-recert-meta"></p>
+          </div>
+          <ul class="rankings" id="pending-recert"></ul>
+        </div>
+
+        <div id="pending-mine-wrap" hidden>
+          <div class="section__head section__head--spaced">
             <p class="label label--accent">Action Required</p>
-            <h2 class="section__title">Awaiting Your Review</h2>
+            <h2 class="section__title">Awaiting Your Audit</h2>
             <p class="section__meta" id="pending-mine-meta"></p>
           </div>
           <ul class="rankings" id="pending-mine"></ul>
@@ -184,69 +215,93 @@
 
         <div class="empty" id="pending-empty" hidden>
           <p class="empty__stamp">All Clear</p>
-          <h3 class="empty__title">No specimens pending.</h3>
-          <p class="empty__text">Every filing in the register has completed peer review. The Office of Auditor Accountability is, briefly, without grievance.</p>
+          <h3 class="empty__title">No establishments pending.</h3>
+          <p class="empty__text">Every establishment in the register holds a current audit from both auditors. The Office of Auditor Accountability is, briefly, without grievance.</p>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ============================================================
-       VIEW 3 — Evaluation (file own audit)
+       VIEW 3 — File an audit
        ============================================================ -->
   <section class="view" id="view-evaluate" role="tabpanel" aria-labelledby="tab-evaluate" tabindex="-1" hidden>
     <div class="band band--dark">
       <div class="shell intro intro--compact">
         <p class="label label--accent" id="eval-form-label">Form BPS&#8209;2</p>
-        <h1 class="intro__title" id="eval-title">File an <span class="accent-rule">Examination</span></h1>
-        <p class="intro__sub" id="eval-sub">You file only your own six scores. Your peer files theirs independently.</p>
+        <h1 class="intro__title" id="eval-title">File an <span class="accent-rule">Audit</span></h1>
+        <p class="intro__sub" id="eval-sub">You file only your own audit. Your peer files theirs independently, at whichever branch and on whichever burger they choose.</p>
       </div>
     </div>
 
     <div class="band band--light">
       <div class="shell section">
 
-        <!-- Prominent shortcut into peer review, so nobody re-creates an existing specimen -->
+        <!-- Shortcut into establishments that need this auditor -->
         <div id="eval-pending-wrap" hidden>
           <div class="section__head">
-            <p class="label label--accent">Complete Pending Review</p>
-            <h2 class="section__title">Already on File</h2>
-            <p class="section__meta">These specimens exist and need only your scores.</p>
+            <p class="label label--accent">Complete a Certification</p>
+            <h2 class="section__title">Awaiting Your Audit</h2>
+            <p class="section__meta">These establishments are on file and need only your audit to certify.</p>
           </div>
           <ul class="rankings" id="eval-pending-list"></ul>
-          <p class="eval__divider"><span>or file a new specimen</span></p>
+          <p class="eval__divider"><span>or file anywhere</span></p>
         </div>
 
         <form class="form" id="evaluate-form" novalidate>
-          <!-- Identity block: editable for a new specimen, fixed when reviewing -->
-          <div id="eval-identity-new">
-            <div class="field">
-              <label class="field__label" for="f-restaurant">Establishment</label>
-              <input class="input" id="f-restaurant" name="restaurant" type="text"
-                     autocomplete="off" enterkeyhint="next" placeholder="e.g. Matt&rsquo;s Bar" />
-              <p class="field__error" id="err-restaurant" hidden>Establishment name is required.</p>
-            </div>
-            <div class="field">
-              <label class="field__label" for="f-burger">Specimen name</label>
-              <input class="input" id="f-burger" name="burger" type="text"
-                     autocomplete="off" enterkeyhint="done" placeholder="e.g. Jucy Lucy" />
-              <p class="field__error" id="err-burger" hidden>Specimen name is required.</p>
-            </div>
-            <div class="dupwarn" id="dup-warning" hidden>
-              <p class="dupwarn__title">Possible duplicate filing</p>
-              <p class="dupwarn__text" id="dup-text"></p>
-              <button class="btn btn--outline btn--small" type="button" id="dup-open">Open existing specimen</button>
-            </div>
-          </div>
 
+          <!-- Amending an existing audit: identity is fixed -->
           <div id="eval-identity-review" hidden>
             <div class="reviewhead">
-              <p class="label label--accent" id="review-specimen">Specimen</p>
+              <p class="label label--accent" id="review-specimen">Establishment</p>
               <p class="reviewhead__burger" id="review-burger">&mdash;</p>
               <p class="reviewhead__restaurant" id="review-restaurant">&mdash;</p>
               <p class="reviewhead__note" id="review-note"></p>
             </div>
-            <button class="btn btn--outline btn--small" type="button" id="review-cancel">File a different specimen instead</button>
+            <button class="btn btn--outline btn--small" type="button" id="review-cancel">File a different audit instead</button>
+          </div>
+
+          <!-- Establishment identity -->
+          <div id="eval-identity-new">
+            <div class="field">
+              <label class="field__label" for="f-establishment">Establishment</label>
+              <input class="input" id="f-establishment" name="establishment" type="text" list="establishment-options"
+                     autocomplete="off" enterkeyhint="next" placeholder="e.g. Culver&rsquo;s" />
+              <datalist id="establishment-options"></datalist>
+              <p class="field__hint" id="hint-establishment">Choose an establishment already on file, or type a new one. The brand is ranked, not the branch.</p>
+              <p class="field__error" id="err-establishment" hidden>An establishment name is required.</p>
+            </div>
+            <div class="field">
+              <label class="field__label" for="f-category">Establishment class</label>
+              <select class="input input--select" id="f-category" name="category"></select>
+              <p class="field__hint" id="hint-category">Shared metadata. Either auditor may correct it.</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="f-burger">Burger examined</label>
+            <input class="input" id="f-burger" name="burger" type="text" list="burger-options"
+                   autocomplete="off" enterkeyhint="next" placeholder="e.g. ButterBurger Cheese" />
+            <datalist id="burger-options"></datalist>
+            <p class="field__hint" id="hint-burger">You may order the same burger as your peer, or a different one. Both are valid.</p>
+            <p class="field__error" id="err-burger" hidden>The burger examined is required.</p>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="f-location">Location</label>
+            <select class="input input--select" id="f-location" name="location">
+              <option value="">Select a location&hellip;</option>
+            </select>
+            <div class="addloc" id="add-location" hidden>
+              <label class="field__label field__label--sub" for="f-newlocation">New location name</label>
+              <div class="addloc__row">
+                <input class="input" id="f-newlocation" type="text" autocomplete="off"
+                       enterkeyhint="done" placeholder="e.g. Mankato" />
+                <button class="btn btn--outline btn--small" type="button" id="add-location-save">Add</button>
+              </div>
+              <p class="field__hint">Added locations are permanent and shared with the other auditor.</p>
+            </div>
+            <p class="field__error" id="err-location" hidden>A location is required.</p>
           </div>
 
           <!-- Score controls injected from CATEGORIES -->
@@ -261,8 +316,17 @@
                 <p class="examiner__score" id="eval-weighted">&mdash;</p>
               </div>
             </div>
-            <p class="examiner__progress" id="eval-progress">0 of 6 categories scored</p>
+            <p class="examiner__progress" id="eval-progress">0 of 8 scores entered</p>
             <div class="score-list" id="eval-scores"></div>
+
+            <div class="servicebox">
+              <div class="servicebox__head">
+                <p class="servicebox__label">Service<span class="score__weight" id="service-weight">10%</span></p>
+                <p class="servicebox__value" id="service-derived">&mdash;</p>
+              </div>
+              <p class="servicebox__note">Service is the mean of Speed and Friendliness. It is never entered directly.</p>
+              <div class="score-list" id="eval-service"></div>
+            </div>
           </div>
 
           <div class="tally" aria-live="polite">
@@ -273,7 +337,7 @@
             <p class="tally__hint" id="tally-hint">Awaiting scores</p>
           </div>
 
-          <button class="btn btn--primary btn--block" type="submit" id="submit-btn">File Examination</button>
+          <button class="btn btn--primary btn--block" type="submit" id="submit-btn">File Audit</button>
           <p class="form__note">Submissions are subject to review. Falsified condiment data is a serious matter.</p>
         </form>
       </div>
@@ -281,16 +345,16 @@
   </section>
 
   <!-- ============================================================
-       VIEW 4 — Evaluation Record
+       VIEW 4 — Establishment File
        ============================================================ -->
-  <section class="view" id="view-record" role="region" aria-label="Evaluation Record" tabindex="-1" hidden>
+  <section class="view" id="view-record" role="region" aria-label="Establishment File" tabindex="-1" hidden>
     <div class="band band--dark">
       <div class="shell record__head">
         <button class="backlink" type="button" data-goto="rankings">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 3L5 8l5 5" /></svg>
           Official Rankings
         </button>
-        <p class="label label--accent" id="record-file">Specimen File</p>
+        <p class="label label--accent" id="record-file">Establishment File</p>
         <h1 class="record__burger" id="record-burger">&mdash;</h1>
         <p class="record__restaurant" id="record-restaurant">&mdash;</p>
         <p class="record__meta" id="record-meta"></p>
@@ -301,25 +365,103 @@
 
     <div class="band band--light">
       <div class="shell section">
+
+        <!-- Shared metadata. Either auditor may correct a typo. -->
         <div class="section__head">
           <p class="label label--accent">Section A</p>
-          <h2 class="section__title">Individual Examiner Scores</h2>
-          <p class="section__meta">Weighted personal score shown per examiner.</p>
+          <h2 class="section__title">Establishment Particulars</h2>
+          <p class="section__meta">Shared record. Either auditor may correct the name or class; neither may touch the other's scores.</p>
+        </div>
+        <div class="estedit" id="record-edit">
+          <div class="field">
+            <label class="field__label" for="edit-name">Registered name</label>
+            <input class="input" id="edit-name" type="text" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="edit-category">Establishment class</label>
+            <select class="input input--select" id="edit-category"></select>
+          </div>
+          <p class="field__error" id="edit-error" hidden></p>
+          <div class="estedit__actions">
+            <button class="btn btn--outline btn--small" type="button" id="edit-save">Save particulars</button>
+          </div>
+          <div class="dupwarn" id="merge-warning" hidden>
+            <p class="dupwarn__title">Name already on file</p>
+            <p class="dupwarn__text" id="merge-text"></p>
+            <button class="btn btn--outline btn--small" type="button" id="merge-confirm">Merge the two records</button>
+          </div>
+        </div>
+
+        <div class="section__head section__head--spaced">
+          <p class="label label--accent">Section B</p>
+          <h2 class="section__title">Examiner Aggregates</h2>
+          <p class="section__meta">Each auditor's figure is the mean of every current-schema audit they hold here.</p>
         </div>
         <div id="record-examiners"></div>
 
         <div id="record-findings-wrap">
           <div class="section__head section__head--spaced">
-            <p class="label label--accent">Section B</p>
+            <p class="label label--accent">Section C</p>
             <h2 class="section__title">Category Findings</h2>
             <p class="section__meta">Combined mean of both examiners. Descriptive only &mdash; the Index is weighted.</p>
           </div>
           <div id="record-findings"></div>
         </div>
+
+        <div class="section__head section__head--spaced">
+          <p class="label label--accent">Section D</p>
+          <h2 class="section__title">Audit History</h2>
+          <p class="section__meta" id="record-history-meta">Every filing on record, in order.</p>
+        </div>
+        <div id="record-history"></div>
       </div>
       <div class="actionbar">
         <div class="shell">
           <button class="btn btn--outline btn--block" type="button" data-goto="rankings">Return to Rankings</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 6 — Records Office
+       ============================================================ -->
+  <section class="view" id="view-records" role="tabpanel" aria-labelledby="tab-records" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell intro intro--compact">
+        <p class="label label--accent">Section V</p>
+        <h1 class="intro__title">Records <span class="accent-rule">Office</span></h1>
+        <p class="intro__sub">The permanent statistical history of the Bureau.</p>
+        <dl class="stats stats--three" id="records-summary" aria-label="Records Office summary"></dl>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+        <div class="section__head">
+          <p class="label label--accent">Section V-A</p>
+          <h2 class="section__title">Entries on Record</h2>
+          <p class="section__meta" id="records-meta">Entries appear here once they have actually been set.</p>
+        </div>
+
+        <div class="recordbar">
+          <div class="filters__field">
+            <label class="filters__label" for="records-sort">Order</label>
+            <select class="input input--select" id="records-sort">
+              <option value="recent">Most recently entered</option>
+              <option value="oldest">Longest standing</option>
+              <option value="contested">Most times superseded</option>
+            </select>
+          </div>
+          <button class="linkbtn" type="button" id="records-sound">Ceremonial sound: on</button>
+        </div>
+
+        <div id="records-list"></div>
+
+        <div class="empty" id="records-empty" hidden>
+          <p class="empty__stamp">No Entries</p>
+          <h3 class="empty__title">The Records Office is empty.</h3>
+          <p class="empty__text">Nothing has yet been entered into the permanent history of the Bureau. Entries appear here the moment a filing establishes one. The Office does not publish what it is waiting for.</p>
         </div>
       </div>
     </div>
@@ -344,7 +486,7 @@
         <div class="section__head">
           <p class="label label--accent">Section IV-A</p>
           <h2 class="section__title">Personnel Files</h2>
-          <p class="section__meta">Derived from every audit filed, including specimens awaiting review.</p>
+          <p class="section__meta">Derived from every current-schema audit filed, including establishments awaiting peer review.</p>
         </div>
         <div id="personnel-files"></div>
 
@@ -365,11 +507,21 @@
           <div id="disputes"></div>
         </div>
 
+        <div id="locations-wrap" hidden>
+          <div class="section__head section__head--spaced">
+            <p class="label label--accent">Section IV-E</p>
+            <h2 class="section__title">Location Registry</h2>
+            <p class="section__meta">Shared reference data. Either auditor may correct a name. A location is archived, never deleted, so historical audits keep their reference.</p>
+          </div>
+          <div id="locations-list"></div>
+          <p class="form__note" id="locations-note"></p>
+        </div>
+
         <div id="differentials-wrap" hidden>
           <div class="section__head section__head--spaced">
             <p class="label label--accent">Section IV-D</p>
             <h2 class="section__title">Category Differentials</h2>
-            <p class="section__meta">Mean score by category, per auditor. Paired specimens only.</p>
+            <p class="section__meta">Mean score by category, per auditor. Certified establishments only.</p>
           </div>
           <div id="differentials"></div>
         </div>
@@ -389,16 +541,22 @@
   </div>
 </footer>
 
+<!-- Records Office proclamation. Fixed overlay, dismissed by the auditor. -->
+<div class="proclaim-host" id="records-ceremony" hidden></div>
+
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
+<script src="taxonomy.js"></script>
 <script src="scoring.js"></script>
 <script src="analytics.js"></script>
 <script src="insights.js"></script>
 <script src="insight-rules.js"></script>
 <script src="disasters.js"></script>
 <script src="disaster-theater.js"></script>
+<script src="records.js"></script>
+<script src="records-office.js"></script>
 <script src="data.js"></script>
 <script src="app.js" defer></script>
 <script>

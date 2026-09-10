@@ -89,40 +89,126 @@ ok('event fingerprints are deterministic', a.every(function (event, i) { return 
 ok('detector does not depend on an auditor identity', !Object.prototype.hasOwnProperty.call(shared, 'me'));
 ok('detector does not call randomness', !/Math\.random/.test(DS.evaluate.toString() + DS.evaluateFeatures.toString()));
 
+/* The v2 model: the ranked entity is the establishment, and the event
+   layer must read it without any of the old one-burger assumptions. */
 function flat(v) {
   var out = {};
-  S.CATEGORY_KEYS.forEach(function (key) { out[key] = v; });
+  S.INPUT_KEYS.forEach(function (key) { out[key] = v; });
   return out;
 }
 
-function burger(id, ryan, devin, createdAt) {
+var AUDIT_N = 0;
+function auditRow(auditorKey, scores, createdAt, opts) {
+  opts = opts || {};
+  AUDIT_N += 1;
+  var row = {
+    id: 'fa' + AUDIT_N,
+    establishmentId: opts.establishmentId || 'fe1',
+    auditorId: auditorKey === 'ryan' ? 'uuid-ryan' : 'uuid-devin',
+    auditorKey: auditorKey,
+    burger: opts.burger || 'Fixture Burger',
+    locationId: 'floc-1',
+    locationName: 'Fixture Location',
+    schemaVersion: S.SCHEMA_VERSION,
+    createdAt: createdAt,
+    updatedAt: createdAt
+  };
+  S.INPUT_KEYS.forEach(function (key) { row[key] = scores[key]; });
+  row.service = S.serviceScore(row);
+  return row;
+}
+
+function fixture(id, audits, createdAt) {
+  audits.forEach(function (a) { a.establishmentId = id; });
   return {
     id: id,
-    specimenNumber: 'BPS-' + id,
-    restaurant: 'Fixture Counter',
-    burger: 'Fixture ' + id,
+    fileNumber: 'BPS-' + id,
+    name: 'Fixture Counter ' + id,
+    nameKey: 'fixture counter ' + id,
+    category: 'fast-food',
     createdBy: 'uuid-ryan',
     createdAt: createdAt,
-    audits: {
-      ryan: ryan && Object.assign({}, ryan, { createdAt: createdAt, updatedAt: createdAt }),
-      devin: devin && Object.assign({}, devin, { createdAt: createdAt, updatedAt: createdAt })
-    }
+    updatedAt: createdAt,
+    audits: audits
   };
 }
 
-var exactMetrics = AN.compute([burger('001', flat(8), flat(8), '2026-08-01T12:00:00Z')]);
-ok('analytics output can activate a system without presentation state', DS.evaluate(exactMetrics).some(function (e) { return e.id === 'd01'; }));
+function registerOf(establishments) {
+  return {
+    establishments: establishments,
+    locations: [{ id: 'floc-1', name: 'Fixture Location', nameKey: 'fixture location',
+                  group: 'minneapolis', isPreset: true, archived: false }]
+  };
+}
 
-var ceilingMetrics = AN.compute([burger('002', flat(10), flat(10), '2026-08-02T12:00:00Z')]);
-ok('full-precision CPI feeds detector state', DS.evaluate(ceilingMetrics).some(function (e) { return e.id === 'd10'; }));
+var exactMetrics = AN.compute(registerOf([
+  fixture('fe1', [
+    auditRow('ryan', flat(8), '2026-08-01T12:00:00Z'),
+    auditRow('devin', flat(8), '2026-08-01T13:00:00Z')
+  ], '2026-08-01T12:00:00Z')
+]));
+ok('analytics output can activate a system without presentation state',
+  DS.evaluate(exactMetrics).some(function (e) { return e.id === 'd01'; }));
+
+var ceilingMetrics = AN.compute(registerOf([
+  fixture('fe2', [
+    auditRow('ryan', flat(10), '2026-08-02T12:00:00Z'),
+    auditRow('devin', flat(10), '2026-08-02T13:00:00Z')
+  ], '2026-08-02T12:00:00Z')
+]));
+ok('full-precision CPI feeds detector state',
+  DS.evaluate(ceilingMetrics).some(function (e) { return e.id === 'd10'; }));
 
 var old = new Date(Date.now() - 15 * 86400000).toISOString();
-var pendingMetrics = AN.compute([burger('003', flat(7), null, old)]);
-ok('shared filing timestamps feed elapsed-state detection', DS.evaluate(pendingMetrics).some(function (e) { return e.id === 'd05'; }));
+var pendingMetrics = AN.compute(registerOf([
+  fixture('fe3', [auditRow('ryan', flat(7), old)], old)
+]));
+ok('shared filing timestamps feed elapsed-state detection',
+  DS.evaluate(pendingMetrics).some(function (e) { return e.id === 'd05'; }));
 
-var before = JSON.stringify(exactMetrics);
+/* Different branches and different burgers must still certify, and the
+   event layer must read the resulting establishment without complaint. */
+var splitMetrics = AN.compute(registerOf([
+  fixture('fe4', [
+    auditRow('ryan', flat(9), '2026-08-03T12:00:00Z', { burger: 'One Thing' }),
+    auditRow('devin', flat(9), '2026-08-09T12:00:00Z', { burger: 'Another Thing' })
+  ], '2026-08-03T12:00:00Z')
+]));
+ok('a divergent-burger certification reaches the event layer',
+  splitMetrics.counts.certified === 1 && Array.isArray(DS.evaluate(splitMetrics)));
+
+/* Service is now part of the scoring schema; an audit lacking it must
+   never reach the event layer as a zero. */
+var legacyScores = flat(8);
+legacyScores.serviceSpeed = null;
+legacyScores.serviceFriendliness = null;
+var legacyMetrics = AN.compute(registerOf([
+  fixture('fe5', [
+    auditRow('ryan', legacyScores, '2026-08-04T12:00:00Z'),
+    auditRow('devin', flat(8), '2026-08-04T13:00:00Z')
+  ], '2026-08-04T12:00:00Z')
+]));
+ok('a superseded-schema audit does not certify for the event layer',
+  legacyMetrics.counts.certified === 0);
+ok('a superseded-schema audit produces no ceiling event',
+  !DS.evaluate(legacyMetrics).some(function (e) { return e.id === 'd10'; }));
+
+/* Repeat visits must not multiply the ranked entity. */
+var repeatMetrics = AN.compute(registerOf([
+  fixture('fe6', [
+    auditRow('ryan', flat(9), '2026-08-05T12:00:00Z'),
+    auditRow('ryan', flat(7), '2026-08-06T12:00:00Z'),
+    auditRow('devin', flat(8), '2026-08-07T12:00:00Z')
+  ], '2026-08-05T12:00:00Z')
+]));
+ok('repeat visits leave one entity for the event layer',
+  repeatMetrics.certified.length === 1 && repeatMetrics.counts.audits === 3);
+ok('the concentration feature reads visits, not duplicate rows',
+  DS.featureVector(repeatMetrics).topOccupation === 3);
+
+var before = JSON.stringify(exactMetrics.counts);
 DS.evaluate(exactMetrics);
-ok('detection does not mutate analytics output', JSON.stringify(exactMetrics) === before);
+ok('detection does not mutate analytics output', JSON.stringify(exactMetrics.counts) === before);
 
 var failed = results.filter(function (result) { return !result.pass; });
 failed.forEach(function (result) {

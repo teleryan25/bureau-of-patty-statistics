@@ -153,29 +153,77 @@ async function run() {
         "document.getElementById('auth-password').value='bps-demo';" +
         "document.getElementById('auth-login-form').requestSubmit();return true})()");
       await waitFor("BPS.app.state.view==='rankings' && BPS.app.state.me===" + JSON.stringify(name.toLowerCase()));
+      await settleCeremonies();
     }
 
+    /* A record proclamation is a fixed overlay the auditor dismisses.
+       Tests clear the queue the same way a person would. */
+    async function settleCeremonies() {
+      for (var i = 0; i < 12; i++) {
+        var open = await evaluate("!document.getElementById('records-ceremony').hidden");
+        if (!open) return i;
+        await evaluate("document.querySelector('.proclaim__dismiss').click()");
+        await delay(40);
+      }
+      return -1;
+    }
+
+    /* Six weighted categories plus the two Service sub-scores. */
     async function fillScores(value, firstValue) {
       var hasFirst = firstValue != null;
-      return evaluate("(()=>{var xs=[...document.querySelectorAll('#eval-scores input[type=range]')];" +
-        'xs.forEach((x,i)=>{x.value=String(i===0&&' + hasFirst + '?' + (hasFirst ? firstValue : value) + ':' + value +
-        ");x.dispatchEvent(new Event('input',{bubbles:true}))});" +
-        "return {count:xs.length,weighted:document.getElementById('eval-weighted').textContent}})()");
+      return evaluate("(()=>{var xs=[...document.querySelectorAll('#eval-scores input[type=range]'),"
+        + "...document.querySelectorAll('#eval-service input[type=range]')];"
+        + 'xs.forEach((x,i)=>{x.value=String(i===0&&' + hasFirst + '?' + (hasFirst ? firstValue : value) + ':' + value
+        + ");x.dispatchEvent(new Event('input',{bubbles:true}))});"
+        + "return {count:xs.length,weighted:document.getElementById('eval-weighted').textContent,"
+        + "service:document.getElementById('service-derived').textContent}})()");
     }
 
-    async function createSpecimen(restaurant, burger, score) {
+    async function selectLocation(name) {
+      return evaluate("(()=>{var sel=document.getElementById('f-location');"
+        + "var opt=[...sel.options].find(o=>o.textContent===" + JSON.stringify(name) + ');'
+        + "if(!opt)return false;sel.value=opt.value;sel.dispatchEvent(new Event('change',{bubbles:true}));"
+        + 'return sel.value===opt.value})()');
+    }
+
+    async function addLocation(name) {
+      await evaluate("(()=>{var sel=document.getElementById('f-location');sel.value='__add__';"
+        + "sel.dispatchEvent(new Event('change',{bubbles:true}));return true})()");
+      await evaluate("(()=>{document.getElementById('f-newlocation').value=" + JSON.stringify(name) + ';'
+        + "document.getElementById('add-location-save').click();return true})()");
+      await waitFor("[...document.getElementById('f-location').options].some(o=>o.textContent===" +
+        JSON.stringify(name) + ')');
+    }
+
+    async function fileAudit(opts) {
       await evaluate("BPS.app.setView('evaluate')");
-      await evaluate("(()=>{var r=document.getElementById('f-restaurant'),b=document.getElementById('f-burger');" +
-        'r.value=' + JSON.stringify(restaurant) + ';b.value=' + JSON.stringify(burger) + ';' +
-        "r.dispatchEvent(new Event('input',{bubbles:true}));b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
-      var filled = await fillScores(score);
-      check('six score controls filled', filled.count === 6, filled);
+      if (opts.establishment) {
+        await evaluate("(()=>{var e=document.getElementById('f-establishment');e.value="
+          + JSON.stringify(opts.establishment) + ";e.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+      }
+      if (opts.category) {
+        await evaluate("(()=>{var c=document.getElementById('f-category');c.value="
+          + JSON.stringify(opts.category) + ";c.dispatchEvent(new Event('change',{bubbles:true}));return true})()");
+      }
+      await evaluate("(()=>{var b=document.getElementById('f-burger');b.value="
+        + JSON.stringify(opts.burger) + ";b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+      if (opts.newLocation) await addLocation(opts.location);
+      else check('location "' + opts.location + '" is selectable', await selectLocation(opts.location));
+      var filled = await fillScores(opts.score, opts.firstValue);
+      if (opts.expectControls !== false) {
+        check('eight score controls filled for ' + opts.burger, filled.count === 8, filled);
+      }
+      var before = await evaluate('BPS.app.state.register.establishments.length');
       await evaluate("document.getElementById('evaluate-form').requestSubmit()");
-      await waitFor("BPS.app.state.view==='rankings' && BPS.app.state.burgers.some(b=>b.burger===" + JSON.stringify(burger) + ')');
-      return evaluate('BPS.app.state.burgers.find(b=>b.burger===' + JSON.stringify(burger) + ').id');
+      await waitFor("BPS.app.state.register.establishments.some(e=>(e.audits||[]).some(a=>a.burger===" +
+        JSON.stringify(opts.burger) + '))', 8000);
+      await settleCeremonies();
+      return evaluate("BPS.app.state.register.establishments.find(e=>(e.audits||[]).some(a=>a.burger===" +
+        JSON.stringify(opts.burger) + ')).id');
     }
 
     async function signOut(waitForTimer) {
+      await settleCeremonies();
       await evaluate("document.getElementById('signout-btn').click()");
       await waitFor("BPS.app.state.session===null && BPS.app.state.view==='auth'");
       if (waitForTimer) await delay(3100);
@@ -227,103 +275,405 @@ async function run() {
       "/invalid email or password/i.test(document.getElementById('auth-error').textContent)"));
 
     await signIn('Ryan');
-    var current = await evaluate("({view:BPS.app.state.view,me:BPS.app.state.me,certified:BPS.app.state.metrics.counts.certified," +
-      "pending:BPS.app.state.metrics.counts.pending,rankRows:document.querySelectorAll('#rankings-list .ranking').length})");
+    var current = await evaluate("({view:BPS.app.state.view,me:BPS.app.state.me," +
+      "certified:BPS.app.state.metrics.counts.certified,pending:BPS.app.state.metrics.counts.pending," +
+      "audits:BPS.app.state.metrics.counts.audits," +
+      "rankRows:document.querySelectorAll('#rankings-list .ranking').length})");
     check('Ryan identity comes from authentication', current.me === 'ryan', current);
-    check('rankings render certified specimens', current.certified === current.rankRows && current.certified > 0, current);
+    check('rankings render one row per certified establishment',
+      current.certified === current.rankRows && current.certified > 0, current);
+    check('the register holds more audits than ranked establishments',
+      current.audits > current.certified, current);
 
+    /* ---- Service is present, weighted and derived ---- */
+    var scoringShape = await evaluate("({weights:BPS.scoring.SCORING_WEIGHTS," +
+      "total:BPS.scoring.weightsTotal(),categories:BPS.scoring.CATEGORY_KEYS.length," +
+      "inputs:BPS.scoring.INPUT_KEYS.length,version:BPS.scoring.SCHEMA_VERSION})");
+    check('the browser build carries the v2 weights', scoringShape.total === 100 &&
+      scoringShape.weights.service === 10 && scoringShape.weights.patty === 25 &&
+      scoringShape.weights.condiments === 5, scoringShape);
+    check('the browser build scores seven categories from eight figures',
+      scoringShape.categories === 7 && scoringShape.inputs === 8, scoringShape);
+
+    /* ---- Filters ---- */
+    await evaluate("BPS.app.setView('rankings')");
+    var filterShape = await evaluate("({locations:document.querySelectorAll('#filter-location option').length," +
+      "categories:document.querySelectorAll('#filter-category option').length," +
+      "firstLocation:document.getElementById('filter-location').options[0].textContent," +
+      "firstCategory:document.getElementById('filter-category').options[0].textContent})");
+    check('rankings default to all locations and all categories',
+      filterShape.firstLocation === 'All Locations' && filterShape.firstCategory === 'All Categories' &&
+      filterShape.locations > 1 && filterShape.categories > 1, filterShape);
+
+    var filtered = await evaluate("(()=>{var sel=document.getElementById('filter-location');" +
+      "var opt=[...sel.options].find(o=>o.value);sel.value=opt.value;" +
+      "sel.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "return {name:opt.textContent,filter:BPS.app.state.filter.locationId," +
+      "rows:document.querySelectorAll('#rankings-list .ranking').length," +
+      "views:BPS.app.state.metrics.views.length," +
+      "global:BPS.app.state.globalMetrics.views.length," +
+      "note:!document.getElementById('filter-note').hidden}})()");
+    check('a location filter narrows the register without renaming establishments',
+      filtered.views <= filtered.global && !!filtered.filter && filtered.note, filtered);
+
+    var combined = await evaluate("(()=>{var cat=document.getElementById('filter-category');" +
+      "var opt=[...cat.options].find(o=>o.value);cat.value=opt.value;" +
+      "cat.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "return {location:BPS.app.state.filter.locationId,category:BPS.app.state.filter.category," +
+      "views:BPS.app.state.metrics.views.length," +
+      "allMatch:BPS.app.state.metrics.views.every(v=>v.category===BPS.app.state.filter.category)}})()");
+    check('location and category filters apply together',
+      !!combined.location && !!combined.category && combined.allMatch, combined);
+
+    var cleared = await evaluate("(()=>{document.getElementById('filter-clear').click();" +
+      "return {location:BPS.app.state.filter.locationId,category:BPS.app.state.filter.category," +
+      "rows:document.querySelectorAll('#rankings-list .ranking').length}})()");
+    check('clearing the filters restores the whole register',
+      cleared.location === null && cleared.category === null &&
+      cleared.rows === current.rankRows, cleared);
+
+    /* ---- Pending queues, including recertification ---- */
     await evaluate("BPS.app.setView('pending')");
     current = await evaluate("({mine:document.querySelectorAll('#pending-mine .ranking').length," +
-      "theirs:document.querySelectorAll('#pending-theirs .ranking').length})");
-    check('Ryan pending queues are separated', current.mine >= 1 && current.theirs >= 1, current);
+      "theirs:document.querySelectorAll('#pending-theirs .ranking').length," +
+      "recert:document.querySelectorAll('#pending-recert .ranking').length," +
+      "legacy:BPS.app.state.globalMetrics.counts.legacyAudits})");
+    check('pending queues separate self, peer and recertification',
+      current.mine + current.theirs >= 1 && current.recert === current.legacy && current.recert >= 1, current);
 
-    var ryanBurger = 'Regression Burger Ryan ' + Date.now();
-    var ryanId = await createSpecimen('Regression Counter', ryanBurger, 8.1);
-    current = await evaluate("(()=>{var v=BPS.app.state.metrics.views.find(v=>v.id===" + JSON.stringify(ryanId) +
-      ');return {status:v.status,cpi:v.cpi,rank:v.rank,missing:v.missing}})()');
-    check('Ryan-only specimen is pending without CPI/rank', current.status === 'pending' && current.cpi === null &&
-      current.rank === null && current.missing === 'devin', current);
+    /* ---- File a brand-new establishment ---- */
+    var stamp = Date.now();
+    var ryanEstablishment = 'Regression Counter ' + stamp;
+    var ryanBurger = 'Regression Burger Ryan ' + stamp;
+    var establishmentId = await fileAudit({
+      establishment: ryanEstablishment, category: 'fast-casual',
+      burger: ryanBurger, location: 'Uptown', score: 8.1
+    });
+    current = await evaluate("(()=>{var v=BPS.app.state.globalMetrics.views.find(v=>v.id===" +
+      JSON.stringify(establishmentId) + ');return {status:v.status,cpi:v.cpi,rank:v.rank,missing:v.missing,' +
+      'visits:v.visits,category:v.category,locations:v.locations}})()');
+    check('a one-sided establishment is pending without CPI or rank',
+      current.status === 'pending' && current.cpi === null && current.rank === null &&
+      current.missing === 'devin' && current.visits === 1, current);
+    check('the establishment carries its class and branch',
+      current.category === 'fast-casual' && current.locations[0] === 'Uptown', current);
+
+    /* ---- A custom location becomes permanent shared data ---- */
+    var customLocation = 'Mankato ' + stamp;
+    var ryanSecondBurger = 'Regression Second ' + stamp;
+    await fileAudit({
+      establishment: ryanEstablishment, burger: ryanSecondBurger,
+      location: customLocation, newLocation: true, score: 8.4
+    });
+    var afterRevisit = await evaluate("(()=>{var v=BPS.app.state.globalMetrics.views.find(v=>v.id===" +
+      JSON.stringify(establishmentId) + ');return {visits:v.visits,locations:v.locations,burgers:v.burgers,' +
+      'establishments:BPS.app.state.register.establishments.length,' +
+      'ryan:v.auditCounts.ryan}})()');
+    check('a second audit joins the same establishment rather than creating a new one',
+      afterRevisit.visits === 2 && afterRevisit.ryan === 2 &&
+      afterRevisit.locations.length === 2 && afterRevisit.burgers.length === 2, afterRevisit);
 
     await signOut(true);
-    check('sign-out clears protected state', await evaluate('BPS.app.state.metrics===null && BPS.app.state.burgers.length===0'));
+    check('sign-out clears protected state',
+      await evaluate('BPS.app.state.metrics===null && BPS.app.state.register.establishments.length===0'));
     check('sign-out delayed callback causes no exception', exceptions.length === 0, exceptions);
 
     await signIn('Devin');
-    await evaluate("BPS.app.setView('pending')");
-    current = await evaluate("({needed:[...document.querySelectorAll('#pending-mine .ranking')].some(x=>x.dataset.id===" +
-      JSON.stringify(ryanId) + '),me:BPS.app.state.me})');
-    check('Ryan-created specimen needs Devin review', current.needed && current.me === 'devin', current);
+    var sharedLocation = await evaluate("[...document.querySelectorAll('#f-location option')]" +
+      '.some(o=>o.textContent===' + JSON.stringify(customLocation) + ')');
+    check('a location added by one auditor is offered to the other', sharedLocation);
 
+    await evaluate("BPS.app.setView('pending')");
+    check('the new establishment awaits Devin',
+      await evaluate("[...document.querySelectorAll('#pending-mine .ranking')]" +
+        '.some(x=>x.dataset.id===' + JSON.stringify(establishmentId) + ')'));
+
+    /* Devin certifies it from a different branch, on a different burger. */
+    var devinBurger = 'Regression Burger Devin ' + stamp;
     await evaluate("(()=>{var row=[...document.querySelectorAll('#pending-mine .ranking')].find(x=>x.dataset.id===" +
-      JSON.stringify(ryanId) + ");row.querySelector('.ranking__action button').click();return true})()");
-    await waitFor("BPS.app.state.view==='evaluate' && BPS.app.state.evalMode.burgerId===" + JSON.stringify(ryanId));
+      JSON.stringify(establishmentId) + ");row.querySelector('.ranking__action button').click();return true})()");
+    await waitFor("BPS.app.state.view==='evaluate' && BPS.app.state.evalMode.establishmentId===" +
+      JSON.stringify(establishmentId));
+    var lockedIdentity = await evaluate("({readonly:document.getElementById('f-establishment').readOnly," +
+      "value:document.getElementById('f-establishment').value})");
+    check('completing a certification reuses the establishment identity',
+      lockedIdentity.readonly && lockedIdentity.value === ryanEstablishment, lockedIdentity);
+    await evaluate("(()=>{var b=document.getElementById('f-burger');b.value=" + JSON.stringify(devinBurger) +
+      ";b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+    await selectLocation('Edina');
     await fillScores(7.9);
     current = await evaluate("({hint:document.getElementById('tally-hint').textContent," +
-      "reviewName:document.getElementById('review-burger').textContent})");
-    check('peer review shows projected CPI', /Projected Composite Patty Index/.test(current.hint) &&
-      current.reviewName === ryanBurger, current);
+      "service:document.getElementById('service-derived').textContent})");
+    check('a completing audit projects the composite index',
+      /Projected Composite Patty Index/.test(current.hint) && current.service === '7.9', current);
     await evaluate("document.getElementById('evaluate-form').requestSubmit()");
-    await waitFor("BPS.app.state.view==='record' && BPS.app.state.metrics.views.find(v=>v.id===" +
-      JSON.stringify(ryanId) + ').certified');
+    await waitFor("BPS.app.state.view==='record' && BPS.app.state.globalMetrics.views.find(v=>v.id===" +
+      JSON.stringify(establishmentId) + ').certified', 8000);
+    await settleCeremonies();
+    await evaluate('BPS.app.openRecord(' + JSON.stringify(establishmentId) + ')');
 
-    var certifiedBefore = await evaluate("(()=>{var v=BPS.app.state.metrics.views.find(v=>v.id===" + JSON.stringify(ryanId) +
-      ");var cards=[...document.querySelectorAll('#record-examiners .exrec')];return {cpi:v.cpi,rank:v.rank,status:v.status," +
-      "examiners:cards.map(x=>x.querySelector('.exrec__name').textContent)," +
-      "ryanEdit:cards.find(x=>x.querySelector('.exrec__name').textContent==='Ryan').querySelectorAll('button').length," +
-      "devinEdit:cards.find(x=>x.querySelector('.exrec__name').textContent==='Devin').querySelectorAll('button').length}})()");
-    check('second audit certifies and assigns official CPI/rank', certifiedBefore.status === 'certified' &&
-      certifiedBefore.cpi !== null && certifiedBefore.rank > 0, certifiedBefore);
-    check('record shows both examiner identities', certifiedBefore.examiners.indexOf('Ryan') !== -1 &&
-      certifiedBefore.examiners.indexOf('Devin') !== -1, certifiedBefore.examiners);
-    check('Devin can amend only Devin audit in normal UI', certifiedBefore.ryanEdit === 0 && certifiedBefore.devinEdit === 1,
-      certifiedBefore);
+    var certified = await evaluate("(()=>{var v=BPS.app.state.globalMetrics.views.find(v=>v.id===" +
+      JSON.stringify(establishmentId) + ");var cards=[...document.querySelectorAll('#record-examiners .exrec')];" +
+      "return {cpi:v.cpi,rank:v.rank,status:v.status,sameBurger:v.sameBurger,locations:v.locations.length," +
+      "visits:v.visits,examiners:cards.map(x=>x.querySelector('.exrec__name').textContent)," +
+      "history:document.querySelectorAll('#record-history .auditrow').length," +
+      "ryanEdit:[...document.querySelectorAll('#record-history .auditrow')].filter(" +
+      "x=>x.querySelector('.auditrow__who').textContent==='Ryan'&&x.querySelector('button')).length," +
+      "devinEdit:[...document.querySelectorAll('#record-history .auditrow')].filter(" +
+      "x=>x.querySelector('.auditrow__who').textContent==='Devin'&&x.querySelector('button')).length}})()");
+    check('different branches and different burgers still certify',
+      certified.status === 'certified' && certified.cpi !== null && certified.rank > 0 &&
+      certified.sameBurger === false && certified.locations === 3, certified);
+    check('the establishment file lists every filing',
+      certified.history === certified.visits && certified.visits === 3, certified);
+    check('the file shows both examiner aggregates',
+      certified.examiners.indexOf('Ryan') !== -1 && certified.examiners.indexOf('Devin') !== -1,
+      certified.examiners);
+    check('Devin may amend only Devin audits in the normal UI',
+      certified.ryanEdit === 0 && certified.devinEdit === 1, certified);
 
-    await evaluate("(()=>{var card=[...document.querySelectorAll('#record-examiners .exrec')].find(" +
-      "x=>x.querySelector('.exrec__name').textContent==='Devin');card.querySelector('button').click();return true})()");
-    await waitFor("BPS.app.state.evalMode.type==='review'");
+    /* Amending an own audit recalculates the composite. */
+    await evaluate("(()=>{var row=[...document.querySelectorAll('#record-history .auditrow')].find(" +
+      "x=>x.querySelector('.auditrow__who').textContent==='Devin');row.querySelector('button').click();return true})()");
+    await waitFor("BPS.app.state.evalMode.type==='amend'");
     await fillScores(7.9, 6.0);
     await evaluate("document.getElementById('evaluate-form').requestSubmit()");
-    await waitFor("BPS.app.state.view==='record'");
-    var certifiedAfter = await evaluate('BPS.app.state.metrics.views.find(v=>v.id===' + JSON.stringify(ryanId) + ').cpi');
-    check('amending own audit recalculates CPI', certifiedAfter !== certifiedBefore.cpi,
-      { before: certifiedBefore.cpi, after: certifiedAfter });
+    await waitFor("BPS.app.state.view==='record'", 8000);
+    await settleCeremonies();
+    var amended = await evaluate('BPS.app.state.globalMetrics.views.find(v=>v.id===' +
+      JSON.stringify(establishmentId) + ').cpi');
+    check('amending an own audit recalculates the composite', amended !== certified.cpi,
+      { before: certified.cpi, after: amended });
 
-    var devinBurger = 'Regression Burger Devin ' + Date.now();
-    var devinId = await createSpecimen('Reverse Direction Grill', devinBurger, 8.3);
+    /* The same burger is equally valid. */
+    var sharedBurger = 'Shared Specimen ' + stamp;
+    var sharedEstablishment = 'Matched Counter ' + stamp;
+    var sharedId = await fileAudit({
+      establishment: sharedEstablishment, category: 'bar-pub',
+      burger: sharedBurger, location: 'Richfield', score: 8.6
+    });
     await signOut(false);
     await signIn('Ryan');
-    await evaluate("BPS.app.setView('pending')");
-    check('Devin-created specimen needs Ryan review', await evaluate("[...document.querySelectorAll('#pending-mine .ranking')]" +
-      '.some(x=>x.dataset.id===' + JSON.stringify(devinId) + ')'));
-    await evaluate("(()=>{var row=[...document.querySelectorAll('#pending-mine .ranking')].find(x=>x.dataset.id===" +
-      JSON.stringify(devinId) + ");row.querySelector('.ranking__action button').click();return true})()");
-    await fillScores(8.0);
+    await evaluate("BPS.app.startForEstablishment(" + JSON.stringify(sharedId) + ')');
+    await waitFor("BPS.app.state.view==='evaluate'");
+    var burgerHints = await evaluate("[...document.querySelectorAll('#burger-options option')].map(o=>o.value)");
+    check('known burgers at an establishment are offered again',
+      burgerHints.indexOf(sharedBurger) !== -1, burgerHints);
+    await evaluate("(()=>{var b=document.getElementById('f-burger');b.value=" + JSON.stringify(sharedBurger) +
+      ";b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+    await selectLocation('Richfield');
+    await fillScores(8.2);
     await evaluate("document.getElementById('evaluate-form').requestSubmit()");
-    await waitFor("BPS.app.state.view==='record' && BPS.app.state.metrics.views.find(v=>v.id===" +
-      JSON.stringify(devinId) + ').certified');
-    check('reverse-direction peer review certifies specimen',
-      await evaluate('BPS.app.state.metrics.views.find(v=>v.id===' + JSON.stringify(devinId) + ').rank>0'));
+    await waitFor("BPS.app.state.globalMetrics.views.find(v=>v.id===" + JSON.stringify(sharedId) + ').certified', 8000);
+    await settleCeremonies();
+    var matched = await evaluate("(()=>{var v=BPS.app.state.globalMetrics.views.find(v=>v.id===" +
+      JSON.stringify(sharedId) + ');return {sameBurger:v.sameBurger,burgers:v.burgers.length,cpi:v.cpi}})()');
+    check('both auditors may order the same burger',
+      matched.sameBurger === true && matched.burgers === 1 && matched.cpi !== null, matched);
 
+    /* ---- Establishment metadata is shared and correctable ---- */
+    await evaluate('BPS.app.openRecord(' + JSON.stringify(sharedId) + ')');
+    var correctedName = sharedEstablishment + ' (Corrected)';
+    await evaluate("(()=>{document.getElementById('edit-name').value=" + JSON.stringify(correctedName) + ';' +
+      "document.getElementById('edit-category').value='diner-cafe';" +
+      "document.getElementById('edit-save').click();return true})()");
+    await waitFor("BPS.app.state.register.establishments.some(e=>e.name===" + JSON.stringify(correctedName) + ')', 8000);
+    await settleCeremonies();
+    var renamed = await evaluate("(()=>{var e=BPS.app.state.register.establishments.find(e=>e.id===" +
+      JSON.stringify(sharedId) + ');return {name:e.name,category:e.category,audits:(e.audits||[]).length,' +
+      'total:BPS.app.state.register.establishments.length}})()');
+    check('either auditor may correct the establishment name and class',
+      renamed.name === correctedName && renamed.category === 'diner-cafe' && renamed.audits === 2, renamed);
+
+    /* A rename onto an existing name offers a merge rather than corrupting state. */
+    await evaluate('BPS.app.openRecord(' + JSON.stringify(sharedId) + ')');
+    await evaluate("(()=>{document.getElementById('edit-name').value=" + JSON.stringify(ryanEstablishment) + ';' +
+      "document.getElementById('edit-save').click();return true})()");
+    await waitFor("!document.getElementById('merge-warning').hidden", 8000);
+    check('a colliding rename offers a merge instead of duplicating the record',
+      await evaluate("/already on file/.test(document.getElementById('merge-text').textContent) && " +
+        "BPS.app.state.register.establishments.length===" + renamed.total));
+
+    /* ---- Records Office ---- */
+    await evaluate("BPS.app.setView('records')");
+    var office = await evaluate("(()=>{var text=document.getElementById('view-records').textContent;" +
+      "var held=BPS.app.state.records.map(r=>r.recordId);" +
+      "var titles=BPS.records.DEFINITIONS.filter(d=>held.indexOf(d.id)===-1).map(d=>d.title);" +
+      "return {cards:document.querySelectorAll('#records-list .recentry').length,held:held.length," +
+      "definitions:BPS.records.DEFINITIONS.length," +
+      "leaked:titles.filter(t=>text.indexOf(t)!==-1)," +
+      "ids:held.filter(id=>new RegExp('(^|[^A-Za-z0-9])'+id+'([^A-Za-z0-9]|$)').test(text))," +
+      "counter:/\\b(\\d+\\s*\\/\\s*200|of 200|200 records|locked|undiscovered)\\b/i.test(text)," +
+      "empty:!document.getElementById('records-empty').hidden}})()");
+    check('the Records Office holds exactly 200 definitions internally',
+      office.definitions === 200, office.definitions);
+    check('the Records Office shows only records that have been set',
+      office.cards === office.held && office.held > 0 && !office.empty, office);
+    check('the Records Office leaks no undiscovered record', office.leaked.length === 0, office.leaked);
+    check('the Records Office publishes no catalogue size or lock count',
+      office.counter === false, office);
+    check('the Records Office exposes no internal record identifiers',
+      office.ids.length === 0, office.ids);
+
+    var sorted = await evaluate("(()=>{var sel=document.getElementById('records-sort');" +
+      "sel.value='oldest';sel.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "var first=document.querySelector('#records-list .recentry .recentry__title').textContent;" +
+      "sel.value='recent';sel.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "return {oldest:first,recent:document.querySelector('#records-list .recentry .recentry__title').textContent," +
+      "cards:document.querySelectorAll('#records-list .recentry').length}})()");
+    check('the Records Office reorders without losing entries',
+      sorted.cards === office.cards, sorted);
+
+    var soundToggle = await evaluate("(()=>{var b=document.getElementById('records-sound');" +
+      "var before=b.textContent;b.click();var mid=b.textContent;b.click();" +
+      "return {before:before,mid:mid,after:b.textContent}})()");
+    check('the ceremonial sound can be silenced and restored',
+      /on$/.test(soundToggle.before) && /off$/.test(soundToggle.mid) && /on$/.test(soundToggle.after),
+      soundToggle);
+
+    /* A record that changes hands must proclaim once, then stay quiet. */
+    var breakerBurger = 'Record Breaker ' + stamp;
+    var breakerEstablishment = 'Apex Counter ' + stamp;
     await evaluate("BPS.app.setView('evaluate')");
-    await evaluate("(()=>{var r=document.getElementById('f-restaurant'),b=document.getElementById('f-burger');" +
-      "r.value='Regression Counter';b.value=" + JSON.stringify(ryanBurger) + ';' +
-      "r.dispatchEvent(new Event('input',{bubbles:true}));b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
-    check('duplicate warning appears', await evaluate("!document.getElementById('dup-warning').hidden && " +
-      "/already on file/.test(document.getElementById('dup-text').textContent)"));
+    var breakerId = await fileAudit({
+      establishment: breakerEstablishment, category: 'fine-dining',
+      burger: breakerBurger, location: 'North Loop', score: 10, expectControls: false
+    });
+    await signOut(false);
+    await signIn('Devin');
+    await evaluate("BPS.app.startForEstablishment(" + JSON.stringify(breakerId) + ')');
+    await waitFor("BPS.app.state.view==='evaluate'");
+    await evaluate("(()=>{var b=document.getElementById('f-burger');b.value=" + JSON.stringify(breakerBurger) +
+      ";b.dispatchEvent(new Event('input',{bubbles:true}));return true})()");
+    await selectLocation('North Loop');
+    await fillScores(10);
+    await evaluate("document.getElementById('evaluate-form').requestSubmit()");
+    await waitFor("BPS.app.state.globalMetrics.views.find(v=>v.id===" + JSON.stringify(breakerId) + ').certified', 8000);
+    await waitFor("!document.getElementById('records-ceremony').hidden", 8000);
 
+    var ceremonyShape = await evaluate("(()=>{var host=document.getElementById('records-ceremony');" +
+      "var card=host.querySelector('.proclaim');var dismiss=host.querySelector('.proclaim__dismiss');" +
+      "return {code:host.querySelector('.proclaim__code').textContent," +
+      "title:host.querySelector('.proclaim__title').textContent," +
+      "figure:host.querySelector('.proclaim__figurevalue').textContent," +
+      "facts:[...host.querySelectorAll('.proclaim__factkey')].map(x=>x.textContent)," +
+      "seal:!!host.querySelector('.proclaim__seal')," +
+      "broken:card.classList.contains('proclaim--broken')," +
+      "button:dismiss.getBoundingClientRect().height," +
+      "overflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-window.innerWidth," +
+      "hostRight:host.getBoundingClientRect().right-window.innerWidth}})()");
+    check('a record proclamation is a formal Bureau document',
+      /RECORDS OFFICE/.test(ceremonyShape.code) && ceremonyShape.title.length > 3 &&
+      ceremonyShape.seal && ceremonyShape.figure !== '', ceremonyShape);
+    check('a proclamation names when the entry was established',
+      ceremonyShape.facts.indexOf('Established') !== -1, ceremonyShape.facts);
+    check('a proclamation offers a touch-sized dismissal',
+      ceremonyShape.button >= 43.5, ceremonyShape.button);
+    check('a proclamation fits the 375px viewport',
+      ceremonyShape.overflow <= 1 && ceremonyShape.hostRight <= 1, ceremonyShape);
+
+    var brokenSeen = await evaluate("(()=>{var seen=false;var n=0;" +
+      "while(!document.getElementById('records-ceremony').hidden && n<12){" +
+      "if(document.querySelector('.proclaim--broken'))seen=true;" +
+      "document.querySelector('.proclaim__dismiss').click();n++}" +
+      "return {seen:seen,dismissed:document.getElementById('records-ceremony').hidden,rounds:n}})()");
+    check('a superseded record is presented as a broken record',
+      brokenSeen.seen && brokenSeen.dismissed, brokenSeen);
+
+    await evaluate('BPS.app.refresh()');
+    await delay(300);
+    check('an acknowledged proclamation does not replay on the next refresh',
+      await evaluate("document.getElementById('records-ceremony').hidden"));
+    await evaluate("BPS.app.setView('records')");
+    check('the Records Office keeps the record after it changes hands',
+      await evaluate("BPS.app.state.records.some(r=>(r.version||1)>1) && " +
+        "document.getElementById('view-records').textContent.indexOf('Record Broken')!==-1"));
+
+    /* The other auditor is entitled to the same proclamation. */
+    await signOut(false);
+    await signIn('Ryan');
+    var peerRecords = await evaluate("({records:BPS.app.state.records.length," +
+      "acks:Object.keys(BPS.app.state.recordAcks).length})");
+    check('both auditors see the same shared record history',
+      peerRecords.records > 0 && peerRecords.acks === peerRecords.records, peerRecords);
+    check('one auditor acknowledging does not erase the record for the other',
+      await evaluate("BPS.app.state.records.some(r=>(r.version||1)>1)"));
+
+    /* ---- Findings ---- */
     await evaluate("BPS.app.setView('insights')");
     var insightFirst = await evaluate("({count:document.querySelectorAll('#findings-list .finding').length," +
-      "text:document.getElementById('findings-list').textContent,eligible:BPS.insights.eligibleRules(BPS.app.state.metrics).length," +
-      "ryanN:BPS.app.state.metrics.auditors.ryan.n,devinN:BPS.app.state.metrics.auditors.devin.n," +
-      "personalRyan:BPS.app.state.metrics.paired.ryanOrder.length,personalDevin:BPS.app.state.metrics.paired.devinOrder.length})");
-    check('insights render 6-12 findings', insightFirst.count >= 6 && insightFirst.count <= 12,
+      "text:document.getElementById('findings-list').textContent," +
+      "eligible:BPS.insights.eligibleRules(BPS.app.state.globalMetrics).length," +
+      "ryanN:BPS.app.state.globalMetrics.auditors.ryan.n,devinN:BPS.app.state.globalMetrics.auditors.devin.n," +
+      "personalRyan:BPS.app.state.globalMetrics.paired.ryanOrder.length," +
+      "personalDevin:BPS.app.state.globalMetrics.paired.devinOrder.length," +
+      "personnel:document.getElementById('personnel-files').textContent})");
+    check('findings render 6-12 entries', insightFirst.count >= 6 && insightFirst.count <= 12,
       { count: insightFirst.count, eligible: insightFirst.eligible });
-    check('personal auditor analytics/rankings are populated', insightFirst.ryanN > 0 && insightFirst.devinN > 0 &&
-      insightFirst.personalRyan > 0 && insightFirst.personalDevin > 0, insightFirst);
+    check('personal auditor analytics and orderings are populated',
+      insightFirst.ryanN > 0 && insightFirst.devinN > 0 && insightFirst.personalRyan > 0 &&
+      insightFirst.personalDevin > 0, insightFirst);
+    check('personnel files report the v2 dimensions',
+      /Locations visited/.test(insightFirst.personnel) && /Service mean/.test(insightFirst.personnel) &&
+      /Establishments audited/.test(insightFirst.personnel), insightFirst.personnel.slice(0, 200));
     await evaluate("document.getElementById('reroll-btn').click()");
     var insightSecond = await evaluate("document.getElementById('findings-list').textContent");
-    check('insight revisit rotates displayed findings', insightSecond !== insightFirst.text);
+    check('revisiting rotates the displayed findings', insightSecond !== insightFirst.text);
     check('rendered findings contain no invalid numeric text', !/(NaN|undefined|Infinity)/.test(insightSecond));
+    check('findings no longer require an identical specimen',
+      !/must eat the same (burger|hamburger)/i.test(insightSecond + insightFirst.text));
+
+    /* ---- Location registry: correct in place, archive rather than delete ---- */
+    var registry = await evaluate("(()=>{var rows=[...document.querySelectorAll('#locations-list .locrow')];" +
+      "return {rows:rows.length,visible:!document.getElementById('locations-wrap').hidden," +
+      "names:rows.map(r=>r.querySelector('.locrow__name').textContent)}})()");
+    check('the location registry lists the locations in use',
+      registry.visible && registry.rows > 0 &&
+      registry.names.indexOf(customLocation) !== -1, registry);
+
+    var correctedLocation = customLocation + ' MN';
+    await evaluate("(()=>{var row=[...document.querySelectorAll('#locations-list .locrow')].find(" +
+      "r=>r.querySelector('.locrow__name').textContent===" + JSON.stringify(customLocation) + ');' +
+      "row.querySelector('.locrow__actions button').click();" +
+      "var input=row.querySelector('.locrow__edit input');input.value=" + JSON.stringify(correctedLocation) + ';' +
+      "row.querySelector('.locrow__edit button').click();return true})()");
+    await waitFor("BPS.app.state.register.locations.some(l=>l.name===" +
+      JSON.stringify(correctedLocation) + ')', 8000);
+    var corrected = await evaluate("(()=>{var loc=BPS.app.state.register.locations.find(l=>l.name===" +
+      JSON.stringify(correctedLocation) + ');' +
+      'var used=BPS.app.state.globalMetrics.auditViews.filter(a=>a.locationId===loc.id);' +
+      'return {audits:used.length,names:used.map(a=>a.locationName),' +
+      'total:BPS.app.state.register.locations.length}})()');
+    check('correcting a location name preserves every audit that used it',
+      corrected.audits >= 1 && corrected.names.every(function (n) { return n === correctedLocation; }),
+      corrected);
+
+    await evaluate("BPS.app.setView('insights')");
+    await evaluate("(()=>{var row=[...document.querySelectorAll('#locations-list .locrow')].find(" +
+      "r=>r.querySelector('.locrow__name').textContent===" + JSON.stringify(correctedLocation) + ');' +
+      "[...row.querySelectorAll('.locrow__actions button')][1].click();return true})()");
+    await waitFor("BPS.app.state.register.locations.some(l=>l.name===" +
+      JSON.stringify(correctedLocation) + ' && l.archived)', 8000);
+    var archived = await evaluate("(()=>{var loc=BPS.app.state.register.locations.find(l=>l.name===" +
+      JSON.stringify(correctedLocation) + ');BPS.app.setView(\'evaluate\');' +
+      "return {onFile:!!loc,archived:loc.archived," +
+      'audits:BPS.app.state.globalMetrics.auditViews.filter(a=>a.locationId===loc.id).length,' +
+      "offered:[...document.querySelectorAll('#f-location option')].some(o=>o.textContent===" +
+      JSON.stringify(correctedLocation) + ')}})()');
+    check('an archived location is withheld from future filings but never deleted',
+      archived.onFile && archived.archived && archived.audits >= 1 && archived.offered === false, archived);
+    check('an archived location leaves its establishment certified',
+      await evaluate("BPS.app.state.globalMetrics.views.find(v=>v.id===" + JSON.stringify(establishmentId) +
+        ').certified'));
+
+    /* The commendation sting must never be attempted without a gesture. */
+    var soundSafety = await evaluate("(()=>{var was=BPS.recordsOffice.audioState.unlocked;" +
+      "BPS.recordsOffice.audioState.unlocked=false;" +
+      "var blocked=BPS.recordsOffice.playSting();" +
+      "BPS.recordsOffice.audioState.unlocked=was;" +
+      "return {blocked:blocked,enabled:BPS.recordsOffice.soundEnabled()}})()");
+    check('the ceremonial sound is withheld until the browser allows audio',
+      soundSafety.blocked === false, soundSafety);
 
     var theaterResults = await evaluate("(()=>{var data={n:20,pending:6,audits:40,exactSpecimens:2,maxWeightedGap:6.2," +
       "rankCorrelation:-.9,exactPct:96,sameNumberOne:true,sameLast:true,oldestPendingDays:95,pendingRyan:6,pendingDevin:0," +
@@ -374,18 +724,28 @@ async function run() {
     await evaluate("BPS.app.disasterDirector.clear()");
 
     await evaluate("BPS.app.setView('pending')");
-    await evaluate("document.querySelector('#pending-theirs .ranking__btn').click()");
-    current = await evaluate("({view:BPS.app.state.view,labels:[...document.querySelectorAll('#record-figures .figure__label')]" +
-      ".map(x=>x.textContent),values:[...document.querySelectorAll('#record-figures .figure__value')].map(x=>x.textContent)})");
-    check('pending specimen detail has no official CPI/rank', current.view === 'record' &&
-      current.values.indexOf('Pending Peer Review') !== -1 && current.labels.indexOf('Composite Patty Index') === -1 &&
-      current.labels.indexOf('Official Rank') === -1, current);
+    var pendingDetail = await evaluate("(()=>{var row=document.querySelector('#pending-theirs .ranking__btn')||" +
+      "document.querySelector('#pending-mine .ranking__btn');if(!row)return null;row.click();" +
+      "return {view:BPS.app.state.view,labels:[...document.querySelectorAll('#record-figures .figure__label')]" +
+      ".map(x=>x.textContent),values:[...document.querySelectorAll('#record-figures .figure__value')].map(x=>x.textContent)}})()");
+    check('a pending establishment file has no official CPI or rank',
+      pendingDetail && pendingDetail.view === 'record' &&
+      pendingDetail.values.indexOf('Pending Peer Review') !== -1 &&
+      pendingDetail.labels.indexOf('Composite Patty Index') === -1 &&
+      pendingDetail.labels.indexOf('Official Rank') === -1, pendingDetail);
 
     await evaluate("BPS.app.setView('rankings')");
     await evaluate("document.querySelector('#rankings-list .ranking__btn').click()");
-    check('certified specimen detail shows CPI and rank', await evaluate("(()=>{var labels=[...document.querySelectorAll(" +
-      "'#record-figures .figure__label')].map(x=>x.textContent);return labels.includes('Composite Patty Index') && " +
-      "labels.includes('Official Rank')})()"));
+    var certifiedDetail = await evaluate("(()=>{var labels=[...document.querySelectorAll(" +
+      "'#record-figures .figure__label')].map(x=>x.textContent);" +
+      "return {labels:labels,history:document.querySelectorAll('#record-history .auditrow').length," +
+      "particulars:!!document.getElementById('edit-name').value," +
+      "service:/Service/.test(document.getElementById('record-findings').textContent)}})()");
+    check('a certified establishment file shows CPI, rank, history and Service',
+      certifiedDetail.labels.indexOf('Composite Patty Index') !== -1 &&
+      certifiedDetail.labels.indexOf('Official Rank') !== -1 &&
+      certifiedDetail.history >= 2 && certifiedDetail.particulars && certifiedDetail.service,
+      certifiedDetail);
 
     var widthResults = [];
     var dimensions = [[375, 812], [430, 900], [768, 1024], [1280, 900]];
@@ -394,7 +754,7 @@ async function run() {
       await send('Emulation.setDeviceMetricsOverride', {
         width: width, height: height, deviceScaleFactor: 1, mobile: width < 768
       });
-      var viewNames = ['rankings', 'pending', 'evaluate', 'record', 'insights'];
+      var viewNames = ['rankings', 'pending', 'evaluate', 'record', 'records', 'insights'];
       for (var vi = 0; vi < viewNames.length; vi++) {
         var view = viewNames[vi];
         await evaluate('BPS.app.setView(' + JSON.stringify(view) + ')');

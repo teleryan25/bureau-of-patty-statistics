@@ -58,16 +58,16 @@
     d08: ['Establishment Containment Order', 'One address has generated enough contradictory evidence to require its own federal perimeter.', 'Exit the perimeter'],
     d09: ['Category-Level Institutional Collapse', 'One scoring department has fallen materially below the others and is no longer answering internal mail.', 'Observe from a distance'],
     d10: ['Ceremony of Absolute Certification', 'The scale has reached its legal ceiling. Additional excellence has nowhere to be entered and is pooling in the hallway.', 'Conclude the ceremony'],
-    d11: ['Bureau Day of Mourning', 'A certified specimen has passed beneath the floor of ordinary disappointment. Flags are being lowered over Condiment Analysis.', 'Sign the condolence book'],
+    d11: ['Bureau Day of Mourning', 'A certified establishment has passed beneath the floor of ordinary disappointment. Flags are being lowered over Condiment Analysis.', 'Sign the condolence book'],
     d12: ['Collective Bargaining Has Failed', 'The auditors completed the register without once occupying the same tenth of the same category.', 'Leave the mediation room'],
     d13: ['Emergency Continuity of Judgment', 'A sustained run of unilateral generosity has triggered constitutional questions about who currently constitutes the Bureau.', 'Decline the appointment'],
     d14: ['Examiner Calibration Incident', 'An auditor has produced a sequence with less variation than the instrument used to record it.', 'Release the technician'],
     d15: ['Register Seismic Activity', 'Recent certification has reversed direction so violently that the historical series is requesting a handrail.', 'Stabilize the desk'],
     d16: ['Category Polarity Event', 'The examiners are not merely disagreeing. They are using several categories to measure opposite physical universes.', 'Reorient north'],
-    d17: ['Departmental Quarantine', 'Every recent specimen has identified the same scoring category as its weakest organ. The door has been sealed from outside.', 'Use the other corridor'],
+    d17: ['Departmental Quarantine', 'Every recent establishment has identified the same scoring category as its weakest organ. The door has been sealed from outside.', 'Use the other corridor'],
     d18: ['Market Concentration Tribunal', 'A single establishment has occupied the summit of the public register. Counsel for the remaining restaurants has arrived.', 'Adjourn the tribunal'],
     d19: ['The Tenths Have Disappeared', 'Decimal precision has departed both desks simultaneously. The Bureau is searching the building one digit at a time.', 'Proceed approximately'],
-    d20: ['Duplicate Index Multiplication', 'Multiple specimens now share an indistinguishable official number. The register has begun photocopying outcomes without authorization.', 'Stop the copier']
+    d20: ['Duplicate Index Multiplication', 'Multiple establishments now share an indistinguishable official number. The register has begun photocopying outcomes without authorization.', 'Stop the copier']
   };
 
   function header(event) {
