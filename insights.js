@@ -49,9 +49,30 @@
     name: function (key) { return S.auditorName(key); },
     other: function (key) { return S.auditorName(S.otherAuditor(key)); },
     ord: function (n) { return '#' + Math.round(Number(n)); },
-    /** "the Jucy Lucy (Matt's Bar)" */
-    spec: function (v) { return v ? v.burger + ' (' + v.restaurant + ')' : 'an unidentified specimen'; },
-    bare: function (v) { return v ? v.burger : 'an unidentified specimen'; },
+    /* THE RANKED ENTITY IS THE ESTABLISHMENT. These two helpers name it,
+       and every rule that refers to a ranked row goes through them. */
+    spec: function (v) { return (v && (v.establishmentName || v.restaurant)) || 'an unidentified establishment'; },
+    bare: function (v) { return (v && (v.establishmentName || v.restaurant)) || 'an unidentified establishment'; },
+    /** How much evidence a ranked establishment rests on. */
+    visits: function (v) {
+      var n = (v && v.visits) || 0;
+      return n + (n === 1 ? ' audit' : ' audits');
+    },
+    /** The branches an establishment has been audited at. */
+    where: function (v) {
+      var list = (v && v.locations) || [];
+      if (!list.length) return 'an unrecorded location';
+      if (list.length === 1) return list[0];
+      if (list.length === 2) return list[0] + ' and ' + list[1];
+      return list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+    },
+    /** One filing: "the ButterBurger Cheese in Richfield". */
+    visit: function (a) {
+      if (!a) return 'an unidentified filing';
+      var burger = a.burger || 'an unrecorded burger';
+      return a.locationName ? burger + ' in ' + a.locationName : burger;
+    },
+    burger: function (a) { return (a && a.burger) || 'an unrecorded burger'; },
     cpi: function (v) { return v && v.cpi != null ? fixed(v.cpi, 1) : '—'; },
     days: function (ms) {
       var d = ms / 86400000;

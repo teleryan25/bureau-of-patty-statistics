@@ -1,11 +1,18 @@
 -- =============================================================
--- Bureau of Patty Statistics — Supabase setup
+-- Bureau of Patty Statistics — Supabase setup (BASELINE, v1)
 --
 -- Run this ONCE in the Supabase SQL Editor
 -- (Dashboard -> SQL Editor -> New query -> paste -> Run).
 --
 -- THE ONLY THING YOU MUST EDIT is the two email addresses in
 -- STEP 1 below. Everything else is ready to run as-is.
+--
+-- >>> THEN RUN supabase/migrations/002_bps_v2.sql <<<
+--
+-- This file is the ORIGINAL v1 schema, kept as the baseline so the
+-- migration has something to migrate. The application in this repo
+-- requires the v2 schema and will report that the register is being
+-- upgraded until 002_bps_v2.sql has been applied.
 -- =============================================================
 
 

@@ -2,15 +2,23 @@
    Bureau of Patty Statistics — analytics.js
 
    Real statistics. No prose, no DOM, no randomness.
-   compute(burgers) returns one precomputed metrics object that the
-   insight rules read. Rules must never recalculate statistics.
+   compute(register, options) returns one precomputed metrics object
+   that the insight rules, the event layer and the Records Office read.
+   Consumers must never recalculate statistics.
 
    All arithmetic uses full-precision values from scoring.js.
 
-   IMPORTANT — paired vs all audits (see Part 19 of the brief):
-     m.auditors.<key>  covers EVERY audit that auditor has filed,
-                       including specimens still awaiting peer review.
-     m.paired          covers ONLY certified specimens, and is the only
+   THE RANKED ENTITY IS THE ESTABLISHMENT.
+   m.views holds one entry per establishment. Each auditor's figures on
+   an establishment are the MEAN of every current-schema audit they hold
+   there, so a repeat visit moves the composite rather than creating a
+   second ranked row.
+
+   IMPORTANT — paired vs all audits:
+     m.auditors.<key>  covers EVERY current-schema audit that auditor has
+                       filed, one entry per visit, including establishments
+                       still awaiting peer review.
+     m.paired          covers ONLY certified establishments, and is the only
                        valid basis for direct Ryan-vs-Devin comparison.
    ============================================================= */
 (function (root, factory) {
@@ -22,9 +30,9 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
 
-  var S = (typeof module !== 'undefined' && module.exports)
-    ? require('./scoring.js')
-    : root.BPS.scoring;
+  var isNode = (typeof module !== 'undefined' && module.exports);
+  var S = isNode ? require('./scoring.js')   : root.BPS.scoring;
+  var T = isNode ? require('./taxonomy.js')  : root.BPS.taxonomy;
 
   var KEYS = S.CATEGORY_KEYS;
   var DAY = 86400000;
@@ -93,40 +101,127 @@
     return { longest: longest, current: current };
   }
 
-  function normalizeName(s) {
-    return String(s || '').toLowerCase()
-      .replace(/[‘’']/g, '')
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
+  /* Name comparison is defined once, in taxonomy.js. */
+  var normalizeName = T.normalizeName;
+
+  function unique(list) {
+    var seen = {}, out = [];
+    list.forEach(function (item) {
+      if (item == null || item === '') return;
+      var key = normalizeName(item);
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(item);
+    });
+    return out;
   }
 
-  /* ---------- per-burger enrichment ---------- */
-  function buildView(burger) {
-    var ryan = S.auditOf(burger, 'ryan');
-    var devin = S.auditOf(burger, 'devin');
-    var hasR = S.hasAudit(burger, 'ryan');
-    var hasD = S.hasAudit(burger, 'devin');
+  function ts(iso) { return Date.parse(iso) || 0; }
+
+  /* ---------- per-audit enrichment ----------
+     One entry per current-schema audit. Shaped like an establishment
+     view so the per-auditor block can consume either. */
+  function buildAuditView(audit, establishment) {
+    var scores = S.withService(audit);
+    var v = {
+      kind: 'audit',
+      id: audit.id,
+      auditId: audit.id,
+      establishmentId: establishment.id,
+      establishmentName: establishment.name,
+      category: establishment.category,
+      categoryLabel: T.categoryLabel(establishment.category),
+      specimen: establishment.fileNumber,
+      /* `restaurant` / `burger` stay populated for wording helpers. */
+      restaurant: establishment.name,
+      burger: audit.burger,
+      label: establishment.name,
+      locationId: audit.locationId,
+      locationName: audit.locationName,
+      auditor: audit.auditorKey,
+      createdAt: audit.createdAt,
+      createdTs: ts(audit.createdAt),
+      updatedAt: audit.updatedAt,
+      compliant: true,
+      scores: { ryan: null, devin: null },
+      weighted: { ryan: null, devin: null },
+      spread: { ryan: null, devin: null },
+      best: {}, worst: {},
+      certified: false, cpi: null, rank: null,
+      combined: {}, deltas: {}, absDeltas: {}
+    };
+    v.scores[audit.auditorKey] = scores;
+    var weighted = S.calculateWeightedReviewerScore(scores);
+    v.weighted[audit.auditorKey] = weighted;
+    v.index = weighted == null ? null : weighted * 10;
+    var vals = KEYS.map(function (k) { return S.categoryValue(scores, k); });
+    v.spread[audit.auditorKey] = range(vals);
+    var hi = extremeBy(KEYS, function (k) { return S.categoryValue(scores, k); }, 'max');
+    var lo = extremeBy(KEYS, function (k) { return S.categoryValue(scores, k); }, 'min');
+    v.best[audit.auditorKey] = hi && hi.item;
+    v.worst[audit.auditorKey] = lo && lo.item;
+    return v;
+  }
+
+  /* ---------- per-establishment enrichment ---------- */
+  function buildView(establishment) {
+    var all = Array.isArray(establishment.audits) ? establishment.audits : [];
+    var compliant = all.filter(S.auditIsCompliant);
+    var legacy = all.filter(function (a) { return !S.auditIsCompliant(a); });
+
+    var byAuditor = { ryan: [], devin: [] };
+    var legacyBy = { ryan: [], devin: [] };
+    compliant.forEach(function (a) { if (byAuditor[a.auditorKey]) byAuditor[a.auditorKey].push(a); });
+    legacy.forEach(function (a) { if (legacyBy[a.auditorKey]) legacyBy[a.auditorKey].push(a); });
+
+    var ryan = S.meanScoreSet(byAuditor.ryan);
+    var devin = S.meanScoreSet(byAuditor.devin);
+    var hasR = !!ryan, hasD = !!devin;
     var certified = hasR && hasD;
 
+    var firstAudit = all.slice().sort(function (a, b) { return ts(a.createdAt) - ts(b.createdAt); })[0];
+    var createdAt = establishment.createdAt || (firstAudit && firstAudit.createdAt);
+
     var v = {
-      id: burger.id,
-      specimen: burger.specimenNumber,
-      restaurant: burger.restaurant,
-      burger: burger.burger,
-      label: burger.burger,
-      createdAt: burger.createdAt,
-      createdTs: Date.parse(burger.createdAt) || 0,
-      createdBy: burger.createdBy,
+      kind: 'establishment',
+      id: establishment.id,
+      specimen: establishment.fileNumber,
+      fileNumber: establishment.fileNumber,
+      name: establishment.name,
+      establishmentName: establishment.name,
+      /* Retained aliases: every wording helper reads these. */
+      restaurant: establishment.name,
+      burger: establishment.name,
+      label: establishment.name,
+      category: establishment.category,
+      categoryLabel: T.categoryLabel(establishment.category),
+      createdAt: createdAt,
+      createdTs: ts(createdAt),
+      createdBy: establishment.createdBy,
+      audits: all,
+      compliantAudits: compliant,
+      legacyAudits: legacy,
+      auditsBy: byAuditor,
+      legacyBy: legacyBy,
+      auditCounts: { ryan: byAuditor.ryan.length, devin: byAuditor.devin.length, total: compliant.length },
+      legacyCounts: { ryan: legacyBy.ryan.length, devin: legacyBy.devin.length, total: legacy.length },
+      visits: compliant.length,
+      revisited: byAuditor.ryan.length > 1 || byAuditor.devin.length > 1,
+      locations: unique(compliant.map(function (a) { return a.locationName; })),
+      locationIds: unique(compliant.map(function (a) { return a.locationId; })),
+      burgers: unique(compliant.map(function (a) { return a.burger; })),
       certified: certified,
-      status: S.statusOf(burger).key,
-      missing: S.missingAuditor(burger),
+      status: (hasR && hasD) ? 'certified' : ((!hasR && !hasD) ? 'empty' : 'pending'),
+      missing: (hasR && !hasD) ? 'devin' : ((!hasR && hasD) ? 'ryan' : null),
       filedBy: hasR && !hasD ? 'ryan' : (!hasR && hasD ? 'devin' : null),
-      scores: { ryan: hasR ? ryan : null, devin: hasD ? devin : null },
+      /* Legacy filings on record that could be brought up to schema. */
+      awaitingRecertification: legacy.length > 0,
+      scores: { ryan: ryan, devin: devin },
       weighted: {
         ryan: hasR ? S.calculateWeightedReviewerScore(ryan) : null,
         devin: hasD ? S.calculateWeightedReviewerScore(devin) : null
       },
-      cpi: certified ? S.cpiOf(burger) : null,
+      cpi: null,
       rank: null,
       combined: {}, deltas: {}, absDeltas: {},
       meanAbsDelta: null, maxAbsDelta: null, maxAbsDeltaCat: null,
@@ -134,16 +229,19 @@
       exactCells: 0,
       spread: { ryan: null, devin: null },
       best: {}, worst: {},
-      turnaroundMs: null, pendingAgeMs: null
+      turnaroundMs: null, pendingAgeMs: null,
+      sameBurger: false
     };
+
+    if (certified) v.cpi = ((v.weighted.ryan + v.weighted.devin) / 2) * 10;
 
     ['ryan', 'devin'].forEach(function (k) {
       var a = v.scores[k];
       if (!a) return;
-      var vals = KEYS.map(function (key) { return Number(a[key]); });
+      var vals = KEYS.map(function (key) { return S.categoryValue(a, key); });
       v.spread[k] = range(vals);
-      var hi = extremeBy(KEYS, function (key) { return Number(a[key]); }, 'max');
-      var lo = extremeBy(KEYS, function (key) { return Number(a[key]); }, 'min');
+      var hi = extremeBy(KEYS, function (key) { return S.categoryValue(a, key); }, 'max');
+      var lo = extremeBy(KEYS, function (key) { return S.categoryValue(a, key); }, 'min');
       v.best[k] = hi && hi.item;
       v.worst[k] = lo && lo.item;
     });
@@ -152,7 +250,7 @@
       var absList = [];
       var sweepR = true, sweepD = true;
       KEYS.forEach(function (key) {
-        var r = Number(ryan[key]), d = Number(devin[key]);
+        var r = S.categoryValue(ryan, key), d = S.categoryValue(devin, key);
         v.combined[key] = (r + d) / 2;
         v.deltas[key] = r - d;
         v.absDeltas[key] = Math.abs(r - d);
@@ -175,21 +273,33 @@
       v.worst.combined = cLo && cLo.item;
       v.combinedSpread = range(KEYS.map(function (key) { return v.combined[key]; }));
 
-      var tr = Date.parse(ryan.createdAt || burger.createdAt);
-      var td = Date.parse(devin.createdAt || burger.createdAt);
+      /* Turnaround = the wait between the two auditors' FIRST current
+         filings here. Different branches and different burgers are fine;
+         certification is what is being timed. */
+      var tr = ts(byAuditor.ryan[0].createdAt);
+      var td = ts(byAuditor.devin[0].createdAt);
       if (isFinite(tr) && isFinite(td)) v.turnaroundMs = Math.abs(tr - td);
+
+      /* A genuine same-burger comparison, when one exists. */
+      var ryanBurgers = byAuditor.ryan.map(function (a) { return normalizeName(a.burger); });
+      v.sameBurger = byAuditor.devin.some(function (a) {
+        return ryanBurgers.indexOf(normalizeName(a.burger)) !== -1;
+      });
+      v.sameLocation = byAuditor.devin.some(function (a) {
+        return byAuditor.ryan.some(function (b) { return b.locationId === a.locationId; });
+      });
     } else if (v.filedBy) {
-      var filedAt = Date.parse(v.scores[v.filedBy].createdAt || burger.createdAt);
-      if (isFinite(filedAt)) v.pendingAgeMs = Date.now() - filedAt;
+      var filedAt = ts(byAuditor[v.filedBy][0].createdAt);
+      if (isFinite(filedAt) && filedAt) v.pendingAgeMs = Date.now() - filedAt;
     }
 
     return v;
   }
 
-  /* ---------- per-auditor block (ALL of that auditor's audits) ---------- */
-  function buildAuditor(key, views) {
+  /* ---------- per-auditor block (ALL of that auditor's current audits) ---------- */
+  function buildAuditor(key, auditViews, establishmentViews) {
     var name = S.auditorName(key);
-    var mine = views.filter(function (v) { return v.scores[key]; });
+    var mine = auditViews.filter(function (v) { return v.auditor === key; });
     mine.sort(function (a, b) { return a.createdTs - b.createdTs; });
 
     var allScores = [];
@@ -198,7 +308,7 @@
 
     mine.forEach(function (v) {
       KEYS.forEach(function (c) {
-        var n = Number(v.scores[key][c]);
+        var n = S.categoryValue(v.scores[key], c);
         allScores.push(n);
         byCat[c].push(n);
       });
@@ -226,9 +336,17 @@
     var nSub7 = count(function (x) { return x < 7; });
     var nWhole = count(function (x) { return Number.isInteger(x); });
 
-    /* Which tenth-decimals does this auditor reach for? */
+    /* Which tenth-decimals does this auditor reach for? Derived Service
+       lands on halves, so only entered figures are counted. */
+    var enteredScores = [];
+    mine.forEach(function (v) {
+      S.INPUT_KEYS.forEach(function (k) {
+        var n = v.scores[key] && v.scores[key][k];
+        if (n != null) enteredScores.push(Number(n));
+      });
+    });
     var decimals = {};
-    allScores.forEach(function (x) {
+    enteredScores.forEach(function (x) {
       var d = Math.round((x - Math.floor(x)) * 10);
       decimals[d] = (decimals[d] || 0) + 1;
     });
@@ -236,13 +354,19 @@
 
     /* Half-point buckets, for "afraid of commitment" style findings. */
     var buckets = {};
-    allScores.forEach(function (x) {
+    enteredScores.forEach(function (x) {
       var b = (Math.floor(x * 2) / 2).toFixed(1);
       buckets[b] = (buckets[b] || 0) + 1;
     });
     var favouriteBucket = extremeBy(Object.keys(buckets), function (b) { return buckets[b]; }, 'max');
 
-    var personal = mine.slice().sort(function (a, b) { return b.weighted[key] - a.weighted[key]; });
+    var enteredWhole = enteredScores.filter(function (x) { return Number.isInteger(x); }).length;
+
+    /* Personal ordering is over ESTABLISHMENTS — the ranked entity. */
+    var personal = (establishmentViews || [])
+      .filter(function (v) { return v.weighted[key] != null; })
+      .slice()
+      .sort(function (a, b) { return b.weighted[key] - a.weighted[key]; });
 
     /* Chronological trend: first half vs second half of their own audits. */
     var trend = null;
@@ -255,8 +379,14 @@
     var recent = weightedVals.length >= 3 ? mean(weightedVals.slice(-3)) : null;
     var prior = weightedVals.length >= 6 ? mean(weightedVals.slice(0, -3)) : null;
 
+    var locations = unique(mine.map(function (v) { return v.locationName; }));
+    var burgers = unique(mine.map(function (v) { return v.burger; }));
+
     return {
       key: key, name: name, n: mine.length, views: mine,
+      establishments: personal.length,
+      locationsVisited: locations.length, locations: locations,
+      burgersEaten: burgers.length, burgers: burgers,
       weighted: {
         values: weightedVals, mean: mean(weightedVals), median: median(weightedVals),
         sd: sd(weightedVals), min: min(weightedVals), max: max(weightedVals), range: range(weightedVals)
@@ -274,7 +404,7 @@
       count9: n9, count10: n10, countBelow5: nSub5, countBelow7: nSub7, countWhole: nWhole,
       pct9: pct(n9, allScores.length), pct10: pct(n10, allScores.length),
       pctBelow5: pct(nSub5, allScores.length), pctBelow7: pct(nSub7, allScores.length),
-      pctWhole: pct(nWhole, allScores.length),
+      pctWhole: pct(enteredWhole, enteredScores.length),
       decimals: decimals,
       favouriteDecimal: favouriteDecimal && Number(favouriteDecimal.item),
       favouriteDecimalCount: favouriteDecimal && favouriteDecimal.value,
@@ -289,7 +419,7 @@
     };
   }
 
-  /* ---------- paired block (CERTIFIED specimens only) ---------- */
+  /* ---------- paired block (CERTIFIED establishments only) ---------- */
   function buildPaired(certified) {
     var chrono = certified.slice().sort(function (a, b) { return a.createdTs - b.createdTs; });
     var n = chrono.length;
@@ -300,8 +430,8 @@
 
     var byCategory = {};
     KEYS.forEach(function (c) {
-      var r = chrono.map(function (v) { return Number(v.scores.ryan[c]); });
-      var d = chrono.map(function (v) { return Number(v.scores.devin[c]); });
+      var r = chrono.map(function (v) { return S.categoryValue(v.scores.ryan, c); });
+      var d = chrono.map(function (v) { return S.categoryValue(v.scores.devin, c); });
       var diffs = chrono.map(function (v) { return v.deltas[c]; });
       var abs = diffs.map(Math.abs);
       byCategory[c] = {
@@ -362,7 +492,7 @@
       ? spearman(rankRows.map(function (r) { return r.ryanRank; }), rankRows.map(function (r) { return r.devinRank; }))
       : null;
 
-    /* Chronological streaks over certified specimens. */
+    /* Chronological streaks over certified establishments. */
     var streaks = {
       ryanHigher: streak(chrono, function (v) { return v.higher === 'ryan'; }),
       devinHigher: streak(chrono, function (v) { return v.higher === 'devin'; }),
@@ -373,9 +503,10 @@
       pattyTop: streak(chrono, function (v) { return v.best.combined === 'patty'; }),
       friesBottom: streak(chrono, function (v) { return v.worst.combined === 'fries'; }),
       valueBottom: streak(chrono, function (v) { return v.worst.combined === 'value'; }),
+      serviceBottom: streak(chrono, function (v) { return v.worst.combined === 'service'; }),
       noTens: streak(chrono, function (v) {
         return !KEYS.some(function (c) {
-          return Number(v.scores.ryan[c]) === 10 || Number(v.scores.devin[c]) === 10;
+          return S.categoryValue(v.scores.ryan, c) === 10 || S.categoryValue(v.scores.devin, c) === 10;
         });
       }),
       sweeps: streak(chrono, function (v) { return !!v.sweep; })
@@ -383,7 +514,7 @@
 
     var cpis = chrono.map(function (v) { return v.cpi; });
 
-    /* Turnaround between the two filings. */
+    /* Turnaround between each auditor's first filing. */
     var turnarounds = chrono.map(function (v) { return v.turnaroundMs; })
       .filter(function (t) { return t != null && isFinite(t); });
 
@@ -417,6 +548,8 @@
       tieCount: chrono.filter(function (v) { return v.higher === 'tie'; }).length,
       ryanSweeps: chrono.filter(function (v) { return v.sweep === 'ryan'; }).length,
       devinSweeps: chrono.filter(function (v) { return v.sweep === 'devin'; }).length,
+      sameBurgerCount: chrono.filter(function (v) { return v.sameBurger; }).length,
+      sameLocationCount: chrono.filter(function (v) { return v.sameLocation; }).length,
       biggestInversion: biggestInversion && biggestInversion.item,
       biggestInversionValue: biggestInversion && biggestInversion.value,
       top3Overlap: n >= 3 ? overlap(ryanOrder, devinOrder, 3) : null,
@@ -438,31 +571,106 @@
     };
   }
 
-  /* ---------- restaurants ---------- */
-  function buildRestaurants(certified) {
-    var groups = {};
-    certified.forEach(function (v) {
-      var k = normalizeName(v.restaurant);
-      (groups[k] = groups[k] || { key: k, name: v.restaurant, views: [] }).views.push(v);
-    });
-    return Object.keys(groups).map(function (k) {
-      var g = groups[k];
-      var cpis = g.views.map(function (v) { return v.cpi; });
-      var rw = g.views.map(function (v) { return v.weighted.ryan; });
-      var dw = g.views.map(function (v) { return v.weighted.devin; });
+  /* ---------- establishment standings ----------
+     `m.restaurants` is one entry per certified establishment. `count` is
+     the number of current-schema visits it holds, and the CPI spread
+     describes how much those individual visits disagreed. */
+  function buildEstablishmentStandings(certified) {
+    return certified.map(function (v) {
+      var indices = v.compliantAudits
+        .map(function (a) { return S.calculateWeightedReviewerScore(S.withService(a)); })
+        .filter(function (n) { return n != null; })
+        .map(function (n) { return n * 10; });
       return {
-        key: g.key, name: g.name, views: g.views, count: g.views.length,
-        meanCPI: mean(cpis), sdCPI: sd(cpis), minCPI: min(cpis), maxCPI: max(cpis), rangeCPI: range(cpis),
-        ryanMean: mean(rw), devinMean: mean(dw),
-        gap: (mean(rw) == null || mean(dw) == null) ? null : mean(rw) - mean(dw)
+        key: v.id, id: v.id, name: v.name, view: v, views: [v],
+        category: v.category, categoryLabel: v.categoryLabel,
+        count: v.visits, revisited: v.revisited,
+        ryanVisits: v.auditCounts.ryan, devinVisits: v.auditCounts.devin,
+        locations: v.locations, burgers: v.burgers,
+        cpi: v.cpi,
+        meanCPI: v.cpi,
+        visitIndices: indices,
+        sdCPI: sd(indices), minCPI: min(indices), maxCPI: max(indices), rangeCPI: range(indices),
+        ryanMean: v.weighted.ryan, devinMean: v.weighted.devin,
+        gap: (v.weighted.ryan == null || v.weighted.devin == null) ? null : v.weighted.ryan - v.weighted.devin
       };
     }).sort(function (a, b) { return b.count - a.count; });
   }
 
+  /* ---------- location + category indexes (unfiltered) ---------- */
+  function buildLocationIndex(views, locations) {
+    var stats = {};
+    views.forEach(function (v) {
+      v.compliantAudits.forEach(function (a) {
+        if (!a.locationId) return;
+        var s = stats[a.locationId] = stats[a.locationId] || {
+          id: a.locationId, name: a.locationName, audits: 0,
+          establishments: {}, byAuditor: { ryan: 0, devin: 0 }
+        };
+        s.audits += 1;
+        s.establishments[v.id] = true;
+        if (s.byAuditor[a.auditorKey] != null) s.byAuditor[a.auditorKey] += 1;
+      });
+    });
+    return (locations || []).map(function (l) {
+      var s = stats[l.id];
+      return {
+        id: l.id, name: l.name, nameKey: l.nameKey, group: l.group,
+        isPreset: l.isPreset, archived: l.archived, createdBy: l.createdBy,
+        audits: s ? s.audits : 0,
+        establishments: s ? Object.keys(s.establishments).length : 0,
+        ryanAudits: s ? s.byAuditor.ryan : 0,
+        devinAudits: s ? s.byAuditor.devin : 0,
+        inUse: !!s
+      };
+    });
+  }
+
+  function buildCategoryIndex(views) {
+    return T.ESTABLISHMENT_CATEGORIES.map(function (c) {
+      var mine = views.filter(function (v) { return v.category === c.key; });
+      var certified = mine.filter(function (v) { return v.certified; });
+      return {
+        key: c.key, label: c.label,
+        establishments: mine.length,
+        certified: certified.length,
+        audits: mine.reduce(function (t, v) { return t + v.visits; }, 0),
+        meanCPI: mean(certified.map(function (v) { return v.cpi; }))
+      };
+    });
+  }
+
+  /* ---------- filtering ----------
+     A location filter restricts the EVIDENCE, not the identity. Culver's
+     stays Culver's; only its Eden Prairie audits are considered, and its
+     certification is judged on that restricted evidence. */
+  function applyFilter(establishments, options) {
+    var locationId = options && options.locationId;
+    var category = options && options.category;
+    var list = establishments;
+    if (category) list = list.filter(function (e) { return e.category === category; });
+    if (locationId) {
+      list = list.map(function (e) {
+        return S.restrictToAudits(e, function (a) { return a.locationId === locationId; });
+      }).filter(function (e) { return e.audits.length > 0; });
+    }
+    return list;
+  }
+
   /* ---------- entry point ---------- */
-  function compute(burgers) {
-    var list = burgers || [];
-    var views = list.map(buildView).sort(function (a, b) { return a.createdTs - b.createdTs; });
+  function compute(register, options) {
+    options = options || {};
+    var reg = Array.isArray(register) ? { establishments: register, locations: [] } : (register || {});
+    var allEstablishments = reg.establishments || [];
+    var locations = reg.locations || [];
+
+    var filtered = applyFilter(allEstablishments, options);
+
+    var views = filtered.map(buildView).sort(function (a, b) { return a.createdTs - b.createdTs; });
+    var unfilteredViews = (options.locationId || options.category)
+      ? allEstablishments.map(buildView).sort(function (a, b) { return a.createdTs - b.createdTs; })
+      : views;
+
     var certified = views.filter(function (v) { return v.certified; });
     var pending = views.filter(function (v) { return v.status === 'pending'; });
 
@@ -470,13 +678,22 @@
     var ranked = certified.slice().sort(function (a, b) { return b.cpi - a.cpi; });
     ranked.forEach(function (v, i) { v.rank = i + 1; });
 
+    var auditViews = [];
+    views.forEach(function (v) {
+      v.compliantAudits.forEach(function (a) { auditViews.push(buildAuditView(a, v)); });
+    });
+    auditViews.sort(function (a, b) { return a.createdTs - b.createdTs; });
+
+    var legacyAudits = [];
+    views.forEach(function (v) { v.legacyAudits.forEach(function (a) { legacyAudits.push({ audit: a, view: v }); }); });
+
     var auditors = {
-      ryan: buildAuditor('ryan', views),
-      devin: buildAuditor('devin', views)
+      ryan: buildAuditor('ryan', auditViews, views),
+      devin: buildAuditor('devin', auditViews, views)
     };
     var paired = buildPaired(certified);
-    var restaurants = buildRestaurants(certified);
-    var repeatRestaurants = restaurants.filter(function (r) { return r.count >= 2; });
+    var restaurants = buildEstablishmentStandings(certified);
+    var repeatRestaurants = restaurants.filter(function (r) { return r.revisited; });
 
     var pendingFor = {
       ryan: pending.filter(function (v) { return v.missing === 'ryan'; }),
@@ -485,7 +702,7 @@
 
     var oldestPending = extremeBy(pending, function (v) { return v.pendingAgeMs; }, 'max');
 
-    /* Register-wide category picture across certified specimens. */
+    /* Register-wide category picture across certified establishments. */
     var categoryBoard = {};
     KEYS.forEach(function (c) {
       var combined = certified.map(function (v) { return v.combined[c]; });
@@ -502,44 +719,67 @@
     var strongestCat = extremeBy(KEYS, function (c) { return categoryBoard[c].mean; }, 'max');
     var weakestCat = extremeBy(KEYS, function (c) { return categoryBoard[c].mean; }, 'min');
 
-    /* Activity cadence. */
-    var days = views.map(function (v) { return v.createdTs; }).filter(Boolean).sort();
+    /* Activity cadence, over actual filings. */
+    var days = auditViews.map(function (v) { return v.createdTs; }).filter(Boolean).sort();
     var gaps = [];
     for (var i = 1; i < days.length; i++) gaps.push(days[i] - days[i - 1]);
     var longestGap = max(gaps);
     var sinceLast = days.length ? Date.now() - days[days.length - 1] : null;
 
+    var locationIndex = buildLocationIndex(unfilteredViews, locations);
+    var activeLocations = locationIndex.filter(function (l) { return l.inUse; });
+    var categoryIndex = buildCategoryIndex(unfilteredViews);
+
     return {
       generatedAt: Date.now(),
+      filter: {
+        locationId: options.locationId || null,
+        locationName: options.locationName || null,
+        category: options.category || null,
+        active: !!(options.locationId || options.category)
+      },
       counts: {
+        /* `burgers` retained as the register-size figure many rules read. */
         burgers: views.length,
+        establishments: views.length,
         certified: certified.length,
         pending: pending.length,
         empty: views.filter(function (v) { return v.status === 'empty'; }).length,
         audits: auditors.ryan.n + auditors.devin.n,
         ryanAudits: auditors.ryan.n,
         devinAudits: auditors.devin.n,
+        legacyAudits: legacyAudits.length,
+        awaitingRecertification: views.filter(function (v) { return v.awaitingRecertification; }).length,
         restaurants: restaurants.length,
-        repeatRestaurants: repeatRestaurants.length
+        repeatRestaurants: repeatRestaurants.length,
+        locations: activeLocations.length,
+        locationsOnFile: locationIndex.length,
+        categories: categoryIndex.filter(function (c) { return c.establishments > 0; }).length,
+        revisits: views.filter(function (v) { return v.revisited; }).length,
+        sameBurgerPairs: paired.sameBurgerCount
       },
       views: views,
       certified: certified,
-      /* The single certified specimen, when that is all we have. Lets the
-         one-specimen rules stay readable. */
+      /* The single certified establishment, when that is all we have. */
       only: certified.length === 1 ? certified[0] : null,
       ranked: ranked,
       pending: pending,
       pendingFor: pendingFor,
       oldestPending: oldestPending && oldestPending.item,
       oldestPendingMs: oldestPending && oldestPending.value,
+      auditViews: auditViews,
+      legacyAudits: legacyAudits,
       auditors: auditors,
       paired: paired,
       restaurants: restaurants,
       repeatRestaurants: repeatRestaurants,
-      topRestaurant: repeatRestaurants.length
-        ? repeatRestaurants.slice().sort(function (a, b) { return b.meanCPI - a.meanCPI; })[0] : null,
-      worstRestaurant: repeatRestaurants.length
-        ? repeatRestaurants.slice().sort(function (a, b) { return a.meanCPI - b.meanCPI; })[0] : null,
+      topRestaurant: restaurants.length
+        ? restaurants.slice().sort(function (a, b) { return b.meanCPI - a.meanCPI; })[0] : null,
+      worstRestaurant: restaurants.length
+        ? restaurants.slice().sort(function (a, b) { return a.meanCPI - b.meanCPI; })[0] : null,
+      locationIndex: locationIndex,
+      activeLocations: activeLocations,
+      categoryIndex: categoryIndex,
       categoryBoard: categoryBoard,
       strongestCat: strongestCat && strongestCat.item,
       weakestCat: weakestCat && weakestCat.item,
@@ -552,9 +792,12 @@
 
   return {
     compute: compute,
+    applyFilter: applyFilter,
+    buildView: buildView,
+    buildAuditView: buildAuditView,
     mean: mean, median: median, sd: sd, variance: variance,
     min: min, max: max, range: range, sum: sum, pct: pct,
     correlation: correlation, spearman: spearman,
-    streak: streak, extremeBy: extremeBy, normalizeName: normalizeName
+    streak: streak, extremeBy: extremeBy, normalizeName: normalizeName, unique: unique
   };
 });

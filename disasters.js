@@ -30,14 +30,21 @@
     return rows.length > 1 ? { key: rows[0].key, gap: rows[1].mean - rows[0].mean } : { key: null, gap: 0 };
   }
 
+  /* Concentration at the summit of the register. The ranked entity is the
+     establishment, so occupation is measured by how much of the evidence
+     base the leader holds rather than by repeated rows. */
   function topOccupation(m) {
-    var top = (m.ranked || []).slice(0, 3);
-    if (top.length < 3) return { count: 0, name: null };
-    var key = normal(top[0].restaurant);
-    var same = key && top.every(function (v) { return normal(v.restaurant) === key; });
-    if (!same) return { count: 0, name: null };
-    var group = (m.restaurants || []).filter(function (r) { return r.key === key; })[0];
-    return { count: group ? group.count : 3, name: top[0].restaurant };
+    var leader = (m.ranked || [])[0];
+    if (!leader) return { count: 0, name: null };
+    var group = (m.restaurants || []).filter(function (r) { return r.key === leader.id; })[0];
+    var count = group ? group.count : (leader.visits || 0);
+    return { count: count, name: leader.name || leader.restaurant };
+  }
+
+  function categoryCount(m) {
+    var board = (m && m.categoryBoard) || {};
+    var n = Object.keys(board).length;
+    return n || 7;
   }
 
   function cpiCluster(views) {
@@ -94,7 +101,8 @@
       }
     }
     var repeats = (m.restaurants || []).slice().sort(function (a, b) { return b.count - a.count; })[0] || {};
-    var exactSpecimens = countWhere(views, function (v) { return v.exactCells === 6; });
+    var cells = categoryCount(m);
+    var exactSpecimens = countWhere(views, function (v) { return v.exactCells === cells; });
     var perfects = countWhere(views, function (v) { return finite(v.cpi, -1) >= 99.95; });
     var catastrophes = countWhere(views, function (v) { return finite(v.cpi, 101) <= 12; });
     var oldestDays = Math.max(0, finite(m.oldestPendingMs) / 86400000);

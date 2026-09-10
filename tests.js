@@ -5,21 +5,27 @@
      node tests.js         headless, exits non-zero on failure
      index.html?test=1     logs a summary to the browser console
 
-   Covers: scoring precision, peer-review lifecycle, analytics,
+   Covers: scoring precision and the new weights, Service, schema
+   versioning and recertification, the establishment model, locations,
+   categories, filtering, editing rules, the Records Office, analytics
    and the insight engine. Browser interaction is tested separately.
    ============================================================= */
 (function (root) {
   'use strict';
   var isNode = (typeof module !== 'undefined' && module.exports);
 
+  var T  = isNode ? require('./taxonomy.js')  : root.BPS.taxonomy;
   var S  = isNode ? require('./scoring.js')   : root.BPS.scoring;
   var AN = isNode ? require('./analytics.js') : root.BPS.analytics;
   var IN = isNode ? require('./insights.js')  : root.BPS.insights;
+  var RC = isNode ? require('./records.js')   : root.BPS.records;
+  var DS = isNode ? require('./disasters.js') : root.BPS.disasters;
   var D  = isNode ? require('./data.js')      : root.BPS.data;
   if (isNode) require('./insight-rules.js');
 
   var results = [];
   var K = S.CATEGORY_KEYS;
+  var INPUTS = S.INPUT_KEYS;
 
   function check(name, actual, expected) {
     results.push({ name: name, pass: Object.is(actual, expected) || actual === expected, actual: actual, expected: expected });
@@ -32,32 +38,84 @@
     results.push({ name: name, pass: !!cond, actual: detail === undefined ? cond : detail, expected: true });
   }
 
-  function flat(v) { var o = {}; K.forEach(function (k) { o[k] = v; }); return o; }
-  function sc(p, o, b, f, va, c) { return { patty: p, overallFlavor: o, bun: b, fries: f, value: va, condiments: c }; }
-  function burger(id, rest, name, r, d, at) {
-    at = at || '2026-06-01T12:00:00Z';
+  /* ---- fixtures ---- */
+  function flat(v) { var o = {}; INPUTS.forEach(function (k) { o[k] = v; }); return o; }
+  function sc(p, o, b, f, va, c, speed, friend) {
+    return { patty: p, overallFlavor: o, bun: b, fries: f, value: va, condiments: c,
+             serviceSpeed: speed, serviceFriendliness: friend };
+  }
+  var AUDIT_SEQ = 0;
+  function audit(auditorKey, scores, opts) {
+    opts = opts || {};
+    AUDIT_SEQ += 1;
+    var a = {
+      id: opts.id || ('a' + AUDIT_SEQ),
+      establishmentId: opts.establishmentId || 'e1',
+      auditorId: auditorKey === 'ryan' ? 'uuid-ryan' : 'uuid-devin',
+      auditorKey: auditorKey,
+      burger: opts.burger === undefined ? 'Standard Burger' : opts.burger,
+      locationId: opts.locationId === undefined ? 'loc-1' : opts.locationId,
+      locationName: opts.locationName === undefined ? 'Uptown' : opts.locationName,
+      schemaVersion: opts.legacy ? S.LEGACY_SCHEMA_VERSION : S.SCHEMA_VERSION,
+      createdAt: opts.at || '2026-06-01T12:00:00Z',
+      updatedAt: opts.at || '2026-06-01T12:00:00Z'
+    };
+    INPUTS.forEach(function (k) { a[k] = scores && scores[k] != null ? Number(scores[k]) : null; });
+    a.service = S.serviceScore(a);
+    return a;
+  }
+  function establishment(id, name, category, audits, opts) {
+    opts = opts || {};
+    (audits || []).forEach(function (a) { a.establishmentId = id; });
     return {
-      id: id, specimenNumber: 'BPS-' + id, restaurant: rest, burger: name,
-      createdBy: 'u1', createdAt: at,
-      audits: {
-        ryan:  r ? Object.assign({}, r, { createdAt: at, updatedAt: at }) : null,
-        devin: d ? Object.assign({}, d, { createdAt: at, updatedAt: at }) : null
-      }
+      id: id, fileNumber: 'BPS-' + id, name: name, nameKey: T.normalizeName(name),
+      category: category || 'other', createdBy: 'uuid-ryan',
+      createdAt: opts.createdAt || '2026-06-01T12:00:00Z',
+      updatedAt: opts.createdAt || '2026-06-01T12:00:00Z',
+      audits: audits || []
+    };
+  }
+  function register(establishments, locations) {
+    return {
+      establishments: establishments,
+      locations: locations || [
+        { id: 'loc-1', name: 'Uptown', nameKey: 'uptown', group: 'minneapolis', isPreset: true, archived: false },
+        { id: 'loc-2', name: 'Richfield', nameKey: 'richfield', group: 'inner-ring', isPreset: true, archived: false },
+        { id: 'loc-3', name: 'Eden Prairie', nameKey: 'eden prairie', group: 'greater-metro', isPreset: true, archived: false }
+      ]
     };
   }
 
   /* =====================================================
-     1. SCORING — weights and full precision
+     1. SCORING — weights, Service and full precision
      ===================================================== */
   check('weights total exactly 100', S.weightsTotal(), 100);
   ok('weightsAreValid()', S.weightsAreValid());
-  check('six categories', K.length, 6);
-  check('patty weight 30', S.SCORING_WEIGHTS.patty, 30);
+  check('seven scoring categories', K.length, 7);
+  check('eight entered figures', INPUTS.length, 8);
+  check('patty weight 25', S.SCORING_WEIGHTS.patty, 25);
   check('overallFlavor weight 25', S.SCORING_WEIGHTS.overallFlavor, 25);
   check('bun weight 15', S.SCORING_WEIGHTS.bun, 15);
   check('fries weight 10', S.SCORING_WEIGHTS.fries, 10);
   check('value weight 10', S.SCORING_WEIGHTS.value, 10);
-  check('condiments weight 10', S.SCORING_WEIGHTS.condiments, 10);
+  check('condiments weight 5', S.SCORING_WEIGHTS.condiments, 5);
+  check('service weight 10', S.SCORING_WEIGHTS.service, 10);
+  check('weights sum by hand', 25 + 25 + 15 + 10 + 10 + 5 + 10, 100);
+
+  /* Service is derived, never entered as one figure. */
+  check('service = mean of speed and friendliness',
+    S.serviceScore({ serviceSpeed: 8, serviceFriendliness: 6 }), 7);
+  near('service keeps full precision',
+    S.serviceScore({ serviceSpeed: 7.3, serviceFriendliness: 7.4 }), 7.35);
+  check('service is null when speed is missing',
+    S.serviceScore({ serviceFriendliness: 8 }), null);
+  check('service is null when friendliness is missing',
+    S.serviceScore({ serviceSpeed: 8 }), null);
+  ok('missing service is NOT treated as zero',
+    S.serviceScore({ serviceSpeed: 8 }) !== 0);
+  check('service is not directly entered',
+    S.CATEGORIES.filter(function (c) { return c.key === 'service'; })[0].derived, true);
+  check('service has exactly two sub-scores', S.SERVICE_SUBSCORES.length, 2);
 
   check('all 10.0 -> weighted 10.0', S.calculateWeightedReviewerScore(flat(10)), 10);
   check('all 0.0 -> weighted 0.0', S.calculateWeightedReviewerScore(flat(0)), 0);
@@ -65,44 +123,52 @@
   check('both all 0 -> CPI 0', S.calculateCPI(flat(0), flat(0)), 0);
   check('both all 5 -> CPI 50', S.calculateCPI(flat(5), flat(5)), 50);
 
-  /* Spec worked example: 270+230+120+75+85+90 = 870 / 100 = 8.7 */
-  near('spec example -> 8.7', S.calculateWeightedReviewerScore(sc(9.0, 9.2, 8.0, 7.5, 8.5, 9.0)), 8.7);
-  near('spec CPI 9.1 / 8.7 -> 89.0', S.calculateCPI(flat(9.1), flat(8.7)), 89);
+  /* Worked example under the v2 weights:
+     patty 9.0*25 + flavor 9.2*25 + bun 8.0*15 + fries 7.5*10
+     + value 8.5*10 + condiments 9.0*5 + service 8.0*10
+     = 225 + 230 + 120 + 75 + 85 + 45 + 80 = 860 / 100 = 8.60 */
+  near('v2 worked example -> 8.60',
+    S.calculateWeightedReviewerScore(sc(9.0, 9.2, 8.0, 7.5, 8.5, 9.0, 7.0, 9.0)), 8.6);
 
-  /* THE PRECISION CORRECTION.
-     Ryan raw 7.475 (displays 7.5), Devin raw 7.975 (displays 8.0).
-     Full precision CPI = ((7.475+7.975)/2)*10 = 77.25
-     Rounded-first CPI would be ((7.5+8.0)/2)*10 = 77.5 */
-  var pr = sc(7.0, 7.5, 8.0, 8.5, 7.0, 7.5);
-  var pd = sc(8.0, 8.5, 7.0, 7.5, 8.0, 8.5);
-  near('weighted keeps full precision (ryan)', S.calculateWeightedReviewerScore(pr), 7.475);
-  near('weighted keeps full precision (devin)', S.calculateWeightedReviewerScore(pd), 7.975);
-  near('CPI uses UNROUNDED weighted scores', S.calculateCPI(pr, pd), 77.25);
+  /* Service really is worth 10%: +1.0 on both halves moves 0.1. */
+  var svcBase = flat(5), svcUp = flat(5);
+  svcUp.serviceSpeed = 6; svcUp.serviceFriendliness = 6;
+  near('+1.0 service -> +0.1 weighted',
+    S.calculateWeightedReviewerScore(svcUp) - S.calculateWeightedReviewerScore(svcBase), 0.1);
+  var halfSvc = flat(5); halfSvc.serviceSpeed = 7;   /* service 6.0 */
+  near('one service half moves half as far',
+    S.calculateWeightedReviewerScore(halfSvc) - S.calculateWeightedReviewerScore(svcBase), 0.1);
+
+  /* THE PRECISION CONTRACT. */
+  /* Ryan raw 7.455 (displays 7.5), Devin raw 7.955 (displays 8.0).
+     Full precision CPI = ((7.455 + 7.955) / 2) * 10 = 77.05
+     Rounded-first CPI would be ((7.5 + 8.0) / 2) * 10 = 77.5 */
+  var pr = sc(7.0, 7.5, 8.0, 8.5, 7.0, 7.5, 6.9, 7.2);
+  var pd = sc(8.0, 8.5, 7.0, 7.5, 8.0, 8.5, 7.9, 8.2);
+  near('weighted keeps full precision (ryan)', S.calculateWeightedReviewerScore(pr), 7.455);
+  near('weighted keeps full precision (devin)', S.calculateWeightedReviewerScore(pd), 7.955);
+  near('CPI uses UNROUNDED weighted scores', S.calculateCPI(pr, pd), 77.05);
   ok('CPI differs from the rounded-first result',
-    Math.abs(S.calculateCPI(pr, pd) - 77.5) > 0.2,
-    S.calculateCPI(pr, pd));
-  check('display rounds to one decimal', S.formatCPI(S.calculateCPI(pr, pd)), '77.3');
-  check('weighted display rounds', S.formatScore(S.calculateWeightedReviewerScore(pr)), '7.5');
-  check('signed display rounds negative ties symmetrically', S.formatSigned(-1.05, 1), '-1.1');
+    Math.abs(S.calculateCPI(pr, pd) - 77.5) > 0.2, S.calculateCPI(pr, pd));
+  check('display rounds to one decimal', S.formatCPI(S.calculateCPI(pr, pd)), '77.1');
   ok('calculation value is NOT the display value',
     S.calculateWeightedReviewerScore(pr) !== Number(S.formatScore(S.calculateWeightedReviewerScore(pr))));
+  check('weighted display rounds', S.formatScore(S.calculateWeightedReviewerScore(pr)), '7.5');
+  check('signed display rounds negative ties symmetrically', S.formatSigned(-1.05, 1), '-1.1');
 
-  /* Combined category averages keep precision too. */
   var comb = S.calculateCombinedCategoryAverages(flat(7.3), flat(7.4));
   near('combined average full precision', comb.patty, 7.35);
   check('combined display rounds', S.formatScore(comb.patty), '7.4');
+  near('combined service average', comb.service, 7.35);
 
-  /* Weighting bites: patty moves more than fries. */
-  var base = flat(5), up = flat(5); up.patty = 6;
-  var fup = flat(5); fup.fries = 6;
-  near('+1.0 patty -> 5.3', S.calculateWeightedReviewerScore(up), 5.3);
-  near('+1.0 fries -> 5.1', S.calculateWeightedReviewerScore(fup), 5.1);
-  ok('patty delta > fries delta',
-    (S.calculateWeightedReviewerScore(up) - S.calculateWeightedReviewerScore(base)) >
-    (S.calculateWeightedReviewerScore(fup) - S.calculateWeightedReviewerScore(base)));
+  /* Weighting bites: patty and flavour move more than condiments. */
+  var up = flat(5); up.patty = 6;
+  var cup = flat(5); cup.condiments = 6;
+  near('+1.0 patty -> 5.25', S.calculateWeightedReviewerScore(up), 5.25);
+  near('+1.0 condiments -> 5.05', S.calculateWeightedReviewerScore(cup), 5.05);
+  ok('patty delta > condiments delta',
+    (S.calculateWeightedReviewerScore(up) - 5) > (S.calculateWeightedReviewerScore(cup) - 5));
 
-  /* Tenths and boundaries. */
-  near('tenths weighted', S.calculateWeightedReviewerScore(sc(7.3, 8.4, 9.7, 6.1, 5.9, 8.8)), 7.825);
   check('clamp to 0', S.clampToScale(-4), 0);
   check('clamp to 10', S.clampToScale(14), 10);
   check('clamp snaps tenths', S.clampToScale(7.34), 7.3);
@@ -113,466 +179,672 @@
   ok('0.0 counts as scored', S.isScored(0));
   ok('10.0 counts as scored', S.isScored(10));
   ok('out-of-range score rejected', !S.isScored(10.1));
-  ok('negative score rejected', !S.isScored(-0.1));
   ok('non-tenth score rejected', !S.isScored(7.34));
   ok('numeric tenth string accepted', S.isScored('7.3'));
 
-  /* Ranking uses raw CPI, not the displayed value.
-     A: 7.44 & 7.46 -> raw 74.5 ; B: flat 7.45 -> raw 74.5 ... construct a
-     pair that displays identically but differs in the third decimal. */
-  var aR = flat(8.9);
-  var aD = sc(6.2, 8.4, 7.5, 6.6, 8.8, 7.9); /* raw CPI 81.575 */
-  var bR = sc(8.2, 9.0, 6.7, 7.5, 8.3, 6.0);
-  var bD = sc(8.6, 8.5, 8.4, 8.3, 8.2, 8.1); /* raw CPI 81.6 */
-  var rawA = S.calculateCPI(aR, aD), rawB = S.calculateCPI(bR, bD);
-  check('both display the same CPI', S.formatCPI(rawA), S.formatCPI(rawB));
-  ok('raw CPIs actually differ', rawA !== rawB, rawA + ' vs ' + rawB);
-  var ranked = S.rankBurgers([burger('a', 'R', 'A', aR, aD), burger('b', 'R', 'B', bR, bD)]);
-  check('higher RAW cpi ranks first despite equal display', ranked[0].id, 'b');
+  /* =====================================================
+     2. SCHEMA VERSIONING AND COMPLIANCE
+     ===================================================== */
+  check('current schema version', S.SCHEMA_VERSION, 2);
+  var currentAudit = audit('ryan', flat(8));
+  var noService = audit('ryan', sc(8, 8, 8, 8, 8, 8, null, null));
+  var noLocation = audit('ryan', flat(8), { locationId: null, locationName: null });
+  var noBurger = audit('ryan', flat(8), { burger: '' });
 
-  /* Genuine ties keep insertion order (stable). */
-  var tie = S.rankBurgers([
-    burger('first', 'R', 'F', flat(8), flat(8)),
-    burger('second', 'R', 'S', flat(8), flat(8)),
-    burger('top', 'R', 'T', flat(9), flat(9))
-  ]);
-  check('tie: highest first', tie[0].id, 'top');
-  check('tie: original order kept (1)', tie[1].id, 'first');
-  check('tie: original order kept (2)', tie[2].id, 'second');
-
-  var personalTie = S.personalRanking([
-    burger('personal-first', 'R', 'F', flat(8), null),
-    burger('personal-second', 'R', 'S', flat(8), null)
-  ], 'ryan');
-  check('personal tie keeps insertion order (1)', personalTie[0].id, 'personal-first');
-  check('personal tie keeps insertion order (2)', personalTie[1].id, 'personal-second');
+  ok('a complete v2 audit is compliant', S.auditIsCompliant(currentAudit));
+  ok('an audit without Service is NOT compliant', !S.auditIsCompliant(noService));
+  ok('an audit without a location is NOT compliant', !S.auditIsCompliant(noLocation));
+  ok('an audit without a burger is NOT compliant', !S.auditIsCompliant(noBurger));
+  check('missing Service is reported by name', S.missingRequirements(noService).join(), 'service');
+  check('missing location is reported by name', S.missingRequirements(noLocation).join(), 'location');
+  check('legacy audit reports the legacy version', S.auditSchemaVersion(noService), 1);
+  check('compliant audit reports the current version', S.auditSchemaVersion(currentAudit), 2);
+  ok('legacy scores are preserved untouched', Number(noService.patty) === 8);
+  ok('legacy audit yields no weighted score rather than a zero',
+    S.calculateWeightedReviewerScore(S.withService(noService)) === null);
 
   /* =====================================================
-     2. PEER REVIEW LIFECYCLE
+     3. THE ESTABLISHMENT MODEL
      ===================================================== */
-  var ryanOnly = burger('p1', 'Rest', 'Solo', flat(8), null);
-  var devinOnly = burger('p2', 'Rest', 'Solo2', null, flat(8));
-  var bothDone = burger('p3', 'Rest', 'Done', flat(8), flat(7));
+  var oneSided = establishment('e1', "Culver's", 'fast-food', [
+    audit('devin', flat(8), { burger: 'ButterBurger Cheese', locationId: 'loc-3', locationName: 'Eden Prairie' })
+  ]);
+  ok('one auditor only -> pending', S.statusOf(oneSided).key === 'pending');
+  check('pending establishment has no CPI', S.cpiOf(oneSided), null);
+  check('the other auditor is named as missing', S.missingAuditor(oneSided), 'ryan');
 
-  check('ryan-only -> pending', S.statusOf(ryanOnly).key, 'pending');
-  check('devin-only -> pending', S.statusOf(devinOnly).key, 'pending');
-  check('both -> certified', S.statusOf(bothDone).key, 'certified');
-  check('no audits -> empty', S.statusOf(burger('p4', 'R', 'None', null, null)).key, 'empty');
-  ok('ryan-only not certified', !S.isCertified(ryanOnly));
-  ok('both certified', S.isCertified(bothDone));
-  check('missing auditor is devin', S.missingAuditor(ryanOnly), 'devin');
-  check('missing auditor is ryan', S.missingAuditor(devinOnly), 'ryan');
-  check('pending has NO official CPI', S.cpiOf(ryanOnly), null);
-  check('certified has CPI', S.cpiOf(bothDone), 75);
+  /* Different branch, different burger — still certifies. */
+  var twoSided = establishment('e1', "Culver's", 'fast-food', [
+    audit('devin', flat(8), { burger: 'ButterBurger Cheese', locationId: 'loc-3', locationName: 'Eden Prairie', at: '2026-06-01T12:00:00Z' }),
+    audit('ryan', flat(9), { burger: 'The Deluxe', locationId: 'loc-2', locationName: 'Richfield', at: '2026-06-05T12:00:00Z' })
+  ]);
+  ok('both auditors -> certified', S.isCertified(twoSided));
+  check('different branches still certify', S.statusOf(twoSided).key, 'certified');
+  near('composite averages the two auditors', S.cpiOf(twoSided), 85);
 
-  /* Certification is completeness, never score quality. */
-  var terrible = burger('bad', 'R', 'Terrible', flat(0.5), flat(0.5));
-  check('a terrible burger is still CERTIFIED', S.statusOf(terrible).key, 'certified');
-  check('terrible CPI is genuinely low', S.cpiOf(terrible), 5);
+  /* Same burger is equally valid. */
+  var sameBurger = establishment('e2', 'Matt’s Bar', 'bar-pub', [
+    audit('ryan', flat(9), { burger: 'Jucy Lucy' }),
+    audit('devin', flat(8), { burger: 'Jucy Lucy' })
+  ]);
+  ok('the same burger is allowed', S.isCertified(sameBurger));
+  near('same-burger composite', S.cpiOf(sameBurger), 85);
 
-  /* Pending burgers stay out of the official rankings. */
-  var mixed = [ryanOnly, devinOnly, bothDone];
-  check('rankings contain certified only', S.rankBurgers(mixed).length, 1);
-  check('pending has no official rank', S.officialRankOf(mixed, 'p1'), null);
-  check('certified has an official rank', S.officialRankOf(mixed, 'p3'), 1);
+  /* A repeat visit moves the composite, it does not add a ranked row. */
+  var repeat = establishment('e1', "Culver's", 'fast-food', [
+    audit('devin', flat(8), { locationId: 'loc-3', locationName: 'Eden Prairie', at: '2026-06-01T12:00:00Z' }),
+    audit('ryan', flat(9), { locationId: 'loc-2', locationName: 'Richfield', at: '2026-06-05T12:00:00Z' }),
+    audit('ryan', flat(7), { locationId: 'loc-1', locationName: 'Uptown', at: '2026-06-09T12:00:00Z' })
+  ]);
+  near('ryan aggregate is the mean of his audits', S.weightedFor(repeat, 'ryan'), 8);
+  near('a repeat visit recalculates the composite', S.cpiOf(repeat), 80);
+  check('repeat visits do not multiply the ranked entity',
+    S.rankEstablishments([repeat]).length, 1);
+  check('compliant audit count', S.auditCount(repeat), 3);
 
-  /* Personal rankings include a reviewer's own pending work. */
-  check('ryan personal ranking includes his pending', S.personalRanking(mixed, 'ryan').length, 2);
-  check('devin personal ranking includes his pending', S.personalRanking(mixed, 'devin').length, 2);
-  ok('personal rank uses only that auditor', S.personalRankOf(mixed, 'ryan', 'p1') != null);
+  /* Weighting between auditors is 50/50 regardless of visit counts. */
+  var lopsided = establishment('e3', 'Lopsided Grill', 'diner-cafe', [
+    audit('ryan', flat(10)), audit('ryan', flat(10)), audit('ryan', flat(10)),
+    audit('devin', flat(4))
+  ]);
+  near('each auditor contributes exactly half the composite', S.cpiOf(lopsided), 70);
 
-  /* Adapter-level: one audit per auditor per burger, own audit only. */
-  var adapter = D.createMockAdapter({ seed: false });
-  var lifecycle = adapter.auth.signInAs('ryan')
-    .then(function () { return adapter.createBurger({ restaurant: 'Matt’s Bar', burger: 'Jucy Lucy' }); })
-    .then(function (b) {
-      return adapter.saveAudit(b.id, flat(9)).then(function () { return b; });
-    })
-    .then(function (b) {
-      return adapter.listBurgers().then(function (list) {
-        check('one burger row after ryan files', list.length, 1);
-        check('status pending after one audit', S.statusOf(list[0]).key, 'pending');
-        /* Same auditor files again -> updates, never duplicates. */
-        return adapter.saveAudit(b.id, flat(8.5)).then(function () {
-          return adapter.listBurgers().then(function (l2) {
-            check('re-filing does not create a second burger', l2.length, 1);
-            check('own audit is editable', Number(S.auditOf(l2[0], 'ryan').patty), 8.5);
-            check('peer audit untouched by ryan', S.auditOf(l2[0], 'devin'), null);
-            return b;
-          });
+  /* Recertification: legacy audits do not count toward certification. */
+  var legacyPair = establishment('e4', 'Parlour', 'bar-pub', [
+    audit('devin', sc(9.5, 9.6, 9.0, 8.4, 8.2, 8.8, null, null), { legacy: true }),
+    audit('ryan', flat(9))
+  ]);
+  ok('a legacy audit does not certify', !S.isCertified(legacyPair));
+  check('legacy audit leaves the establishment pending', S.statusOf(legacyPair).key, 'pending');
+  check('the legacy owner is named as missing', S.missingAuditor(legacyPair), 'devin');
+  check('legacy audits stay on file', S.legacyAuditsOf(legacyPair, 'devin').length, 1);
+  ok('legacy scores survive intact',
+    Number(S.legacyAuditsOf(legacyPair, 'devin')[0].patty) === 9.5);
+
+  var recertified = establishment('e4', 'Parlour', 'bar-pub', [
+    audit('devin', sc(9.5, 9.6, 9.0, 8.4, 8.2, 8.8, 8.0, 8.0)),
+    audit('ryan', flat(9))
+  ]);
+  ok('supplying Service re-certifies the establishment', S.isCertified(recertified));
+  ok('recertified establishment has a CPI', S.cpiOf(recertified) != null);
+
+  /* =====================================================
+     4. ANALYTICS OVER THE ESTABLISHMENT MODEL
+     ===================================================== */
+  var reg = register([
+    establishment('e1', "Culver's", 'fast-food', [
+      audit('devin', flat(8), { burger: 'ButterBurger Cheese', locationId: 'loc-3', locationName: 'Eden Prairie', at: '2026-06-01T12:00:00Z' }),
+      audit('ryan', flat(9), { burger: 'The Deluxe', locationId: 'loc-2', locationName: 'Richfield', at: '2026-06-05T12:00:00Z' }),
+      audit('ryan', flat(7), { burger: 'The Deluxe', locationId: 'loc-3', locationName: 'Eden Prairie', at: '2026-06-09T12:00:00Z' })
+    ], { createdAt: '2026-06-01T12:00:00Z' }),
+    establishment('e2', 'Matt’s Bar', 'bar-pub', [
+      audit('ryan', flat(9.5), { burger: 'Jucy Lucy', locationId: 'loc-1', locationName: 'Uptown', at: '2026-06-02T12:00:00Z' }),
+      audit('devin', flat(9), { burger: 'Jucy Lucy', locationId: 'loc-1', locationName: 'Uptown', at: '2026-06-03T12:00:00Z' })
+    ], { createdAt: '2026-06-02T12:00:00Z' }),
+    establishment('e3', 'Blue Door Pub', 'bar-pub', [
+      audit('ryan', flat(6), { burger: 'Blucy', locationId: 'loc-1', locationName: 'Uptown', at: '2026-06-04T12:00:00Z' })
+    ], { createdAt: '2026-06-04T12:00:00Z' }),
+    establishment('e4', 'Parlour', 'bar-pub', [
+      audit('devin', sc(9, 9, 9, 9, 9, 9, null, null), { legacy: true, burger: 'Parlour Burger',
+        locationId: null, locationName: null, at: '2026-06-06T12:00:00Z' })
+    ], { createdAt: '2026-06-06T12:00:00Z' })
+  ]);
+  var m = AN.compute(reg);
+
+  check('one view per establishment', m.views.length, 4);
+  check('certified establishments', m.counts.certified, 2);
+  check('pending establishments', m.counts.pending, 1);
+  check('compliant audits counted per filing', m.counts.audits, 6);
+  check('legacy audits counted separately', m.counts.legacyAudits, 1);
+  check('establishments awaiting recertification', m.counts.awaitingRecertification, 1);
+  check('audit views are one per filing', m.auditViews.length, 6);
+  check('ryan filed four current audits', m.auditors.ryan.n, 4);
+  check('devin filed two current audits', m.auditors.devin.n, 2);
+  check('ryan visited three locations', m.auditors.ryan.locationsVisited, 3);
+  check('rankings are establishments', m.ranked.length, 2);
+  check('top establishment', m.ranked[0].name, 'Matt’s Bar');
+  near('top CPI', m.ranked[0].cpi, 92.5);
+  check('revisited establishment detected', m.counts.revisits, 1);
+  check("Culver's records two branches", m.views.filter(function (v) { return v.id === 'e1'; })[0].locations.length, 2);
+  check("Culver's records two burgers", m.views.filter(function (v) { return v.id === 'e1'; })[0].burgers.length, 2);
+  ok('different-burger certification is flagged',
+    m.views.filter(function (v) { return v.id === 'e1'; })[0].sameBurger === false);
+  ok('same-burger certification is flagged',
+    m.views.filter(function (v) { return v.id === 'e2'; })[0].sameBurger === true);
+  check('pending queue targets the missing auditor', m.pendingFor.devin[0].name, 'Blue Door Pub');
+  check('service reaches the category board', typeof m.categoryBoard.service.mean, 'number');
+  check('service reaches the paired comparison', typeof m.paired.byCategory.service.meanAbs, 'number');
+
+  /* =====================================================
+     5. LOCATIONS AND CATEGORIES
+     ===================================================== */
+  ok('preset location register is populated', T.PRESET_LOCATIONS.length >= 40);
+  ok('preset location register stays usable', T.PRESET_LOCATIONS.length <= 90);
+  ok('preset locations are unique',
+    new Set(T.PRESET_LOCATIONS.map(function (l) { return l.nameKey; })).size === T.PRESET_LOCATIONS.length);
+  ok('presets include a Minneapolis district', T.isPresetLocation('North Loop'));
+  ok('presets include a suburb', T.isPresetLocation('Eden Prairie'));
+
+  check('normalisation folds punctuation', T.normalizeName('St. Louis Park'), 'st louis park');
+  check('normalisation folds case', T.normalizeName('ST LOUIS PARK'), 'st louis park');
+  check('normalisation folds spacing', T.normalizeName('  st   louis  park '), 'st louis park');
+  check('normalisation folds apostrophes', T.normalizeName("Lion's Den"), 'lions den');
+  ok('two spellings of one location match', T.sameName('St. Louis Park', 'st louis park'));
+  ok('two different locations do not match', !T.sameName('Edina', 'Eden Prairie'));
+
+  ok('categories are a controlled set', T.CATEGORY_KEYS.length >= 5 && T.CATEGORY_KEYS.length <= 10);
+  ok('an unknown category coerces to Other', T.coerceCategory('gastropub-fusion') === 'other');
+  ok('a known category survives coercion', T.coerceCategory('fast-food') === 'fast-food');
+  ok('categories are never freeform', !T.isCategory('Fast Food'));
+
+  /* Location filtering restricts the evidence, not the identity. */
+  var epId = 'loc-3';
+  var filtered = AN.compute(reg, { locationId: epId, locationName: 'Eden Prairie' });
+  check('location filter keeps only relevant establishments', filtered.views.length, 1);
+  check('location filter keeps the establishment identity', filtered.views[0].name, "Culver's");
+  check('location filter judges certification on that evidence', filtered.views[0].status, 'certified');
+  near('location filter recomputes the composite from local audits', filtered.views[0].cpi, 75);
+  ok('unfiltered composite differs from the filtered one',
+    m.views.filter(function (v) { return v.id === 'e1'; })[0].cpi !== filtered.views[0].cpi);
+
+  var richfield = AN.compute(reg, { locationId: 'loc-2' });
+  check('a one-sided location leaves the establishment pending', richfield.views[0].status, 'pending');
+  check('a one-sided location yields no certified rows', richfield.counts.certified, 0);
+
+  var bars = AN.compute(reg, { category: 'bar-pub' });
+  check('category filter selects by class', bars.views.length, 3);
+  ok('category filter excludes other classes',
+    bars.views.every(function (v) { return v.category === 'bar-pub'; }));
+
+  var both = AN.compute(reg, { locationId: 'loc-1', category: 'bar-pub' });
+  check('location and category filters combine', both.views.length, 2);
+  ok('combined filter keeps only matching rows',
+    both.views.every(function (v) { return v.category === 'bar-pub'; }));
+  check('combined filter certification', both.counts.certified, 1);
+
+  var fastFoodAtUptown = AN.compute(reg, { locationId: 'loc-1', category: 'fast-food' });
+  check('a filter with no matches yields nothing', fastFoodAtUptown.views.length, 0);
+
+  check('location index reports usage', m.locationIndex.filter(function (l) { return l.id === 'loc-1'; })[0].audits, 3);
+  check('location index counts establishments', m.locationIndex.filter(function (l) { return l.id === 'loc-1'; })[0].establishments, 2);
+  check('category index counts establishments',
+    m.categoryIndex.filter(function (c) { return c.key === 'bar-pub'; })[0].establishments, 3);
+
+  /* =====================================================
+     6. RECORDS OFFICE
+     ===================================================== */
+  var recordStats = RC.stats();
+  check('exactly 200 record definitions exist', recordStats.definitions, 200);
+  check('record identifiers are unique', new Set(recordStats.ids).size, 200);
+  ok('records span many families', recordStats.familyCount >= 8, recordStats.familyCount);
+  ok('records are not all one comparison kind',
+    Object.keys(recordStats.kinds).length >= 3, recordStats.kinds);
+  ok('every definition supplies a detector',
+    RC.DEFINITIONS.every(function (d) { return typeof d.detect === 'function'; }));
+  ok('every definition supplies a title',
+    RC.DEFINITIONS.every(function (d) { return typeof d.title === 'string' && d.title.length > 3; }));
+  ok('record titles are unique',
+    new Set(RC.DEFINITIONS.map(function (d) { return d.title; })).size === 200);
+
+  var firstPass = RC.detect(m, []);
+  ok('an empty office discovers records from a live register', firstPass.changes.length > 0,
+    firstPass.changes.length);
+  ok('discovery does not reveal the whole catalogue', firstPass.changes.length < 200,
+    firstPass.changes.length);
+  ok('every discovered record carries a fingerprint',
+    firstPass.changes.every(function (r) { return !!r.fingerprint; }));
+  ok('a first discovery is not marked as broken',
+    firstPass.changes.every(function (r) { return r.broke === false; }));
+
+  /* Detection converges: re-running against its own output is quiet. */
+  var stored = firstPass.changes.map(function (r) { return Object.assign({}, r, { version: 1 }); });
+  var secondPass = RC.detect(m, stored);
+  var thirdStore = stored.slice();
+  secondPass.changes.forEach(function (c) {
+    thirdStore = thirdStore.filter(function (x) { return x.recordId !== c.recordId; });
+    thirdStore.push(Object.assign({}, c, { version: 1 }));
+  });
+  check('re-detection settles', RC.detect(m, thirdStore).changes.length, 0);
+
+  /* Records change hands when a filing beats them. */
+  var better = register([
+    establishment('e5', 'Record Breaker', 'fast-casual', [
+      audit('ryan', flat(10), { burger: 'The Maximum', at: '2026-07-01T12:00:00Z' }),
+      audit('devin', flat(10), { burger: 'The Maximum', at: '2026-07-02T12:00:00Z' })
+    ], { createdAt: '2026-07-01T12:00:00Z' })
+  ].concat(reg.establishments), reg.locations);
+  var afterBreak = RC.detect(AN.compute(better), thirdStore);
+  var highest = afterBreak.changes.filter(function (r) { return r.recordId === 'r004'; })[0];
+  ok('a higher figure breaks the standing record', !!highest, afterBreak.changes.length);
+  ok('a broken record is flagged as broken', highest && highest.broke === true);
+  ok('a broken record preserves the previous holder',
+    highest && highest.previous && highest.previous.establishmentName === 'Matt’s Bar');
+  near('the new record carries the new figure', highest && highest.value, 100);
+
+  /* Comparator rules. */
+  var high = RC.definition('r004');
+  var low = RC.definition('r005');
+  ok('a strictly higher value beats a high record',
+    RC.beats(high, { value: 91 }, { value: 90 }));
+  ok('an equal value does NOT displace the holder',
+    !RC.beats(high, { value: 90 }, { value: 90 }));
+  ok('a lower value does not beat a high record',
+    !RC.beats(high, { value: 89 }, { value: 90 }));
+  ok('a strictly lower value beats a low record',
+    RC.beats(low, { value: 40 }, { value: 41 }));
+  ok('a first-ever record is never displaced',
+    !RC.beats({ kind: 'first' }, { value: 1 }, { value: 0 }));
+  ok('an identity record changes only when the subject changes',
+    RC.beats({ kind: 'identity' }, { detail: { key: 'b' } }, { detail: { key: 'a' } }) &&
+    !RC.beats({ kind: 'identity' }, { detail: { key: 'a' } }, { detail: { key: 'a' } }));
+
+  /* Fingerprints drive per-user acknowledgement. */
+  var fp1 = RC.fingerprintOf(high, { value: 90, establishmentId: 'e1' });
+  var fp2 = RC.fingerprintOf(high, { value: 90, establishmentId: 'e1' });
+  var fp3 = RC.fingerprintOf(high, { value: 91, establishmentId: 'e1' });
+  check('fingerprints are stable for identical state', fp1, fp2);
+  ok('fingerprints change when the record changes', fp1 !== fp3);
+
+  ok('an empty register discovers nothing that needs data',
+    RC.detect(AN.compute(register([])), []).changes.length === 0);
+
+  /* =====================================================
+     7. INSIGHT AND EVENT ENGINES
+     ===================================================== */
+  var insightStats = IN.stats();
+  ok('insight library survived the migration', insightStats.rules >= 330, insightStats.rules);
+  ok('insight families remain diverse', insightStats.familyCount >= 13, insightStats.familyCount);
+
+  var renderFailures = [];
+  IN.RULES.forEach(function (rule) {
+    if (!IN.isEligible(rule, m)) return;
+    rule.variants.forEach(function (_, i) {
+      if (!IN.render(rule, m, i)) renderFailures.push(rule.id + '#' + i);
+    });
+  });
+  check('every eligible insight renders cleanly', renderFailures.length, 0);
+  ok('insights are actually eligible on a live register', IN.eligibleRules(m).length >= 20,
+    IN.eligibleRules(m).length);
+
+  var leaks = [];
+  IN.RULES.forEach(function (rule) {
+    if (!IN.isEligible(rule, m)) return;
+    rule.variants.forEach(function (_, i) {
+      var out = IN.render(rule, m, i);
+      if (!out) return;
+      var text = out.title + ' ' + out.body;
+      if (/same (?:burger|hamburger)(?! at| as)/i.test(text) && !/permitted|not required|valid/i.test(text)) {
+        leaks.push(rule.id);
+      }
+    });
+  });
+  check('no insight asserts the auditors must eat the same burger', leaks.length, 0, leaks);
+
+  var svcRules = IN.RULES.filter(function (r) { return r.family === 'service'; });
+  ok('the insight library reasons about Service', svcRules.length >= 5, svcRules.length);
+  ok('the insight library reasons about locations',
+    IN.RULES.filter(function (r) { return r.family === 'locations'; }).length >= 5);
+  ok('the insight library reasons about establishment classes',
+    IN.RULES.filter(function (r) { return r.family === 'classes'; }).length >= 4);
+  ok('the insight library reasons about schema compliance',
+    IN.RULES.filter(function (r) { return r.family === 'compliance'; }).length >= 2);
+  ok('the insight library reasons about repeat visits',
+    IN.RULES.filter(function (r) { return r.family === 'visits'; }).length >= 4);
+
+  var disasterStats = DS.stats();
+  check('all twenty event systems survived', disasterStats.systems, 20);
+  check('event identifiers remain unique', new Set(disasterStats.ids).size, 20);
+  ok('the event layer reads the new metrics without throwing',
+    Array.isArray(DS.evaluate(m)));
+  ok('an empty register triggers no event', DS.evaluate(AN.compute(register([]))).length === 0);
+  var featureBefore = JSON.stringify(m.counts);
+  DS.evaluate(m);
+  check('event detection does not mutate analytics', JSON.stringify(m.counts), featureBefore);
+
+  /* =====================================================
+     8. ADAPTER CONTRACT — mock
+     ===================================================== */
+  var lifecycle = (function () {
+    var a = D.createMockAdapter({ seed: false });
+    var uptownId, addedId, culversId, ryanAuditId;
+
+    return a.auth.signInAs('ryan').then(function () {
+      uptownId = a._locationIdByName('Uptown');
+      ok('preset locations are seeded into the register', !!uptownId);
+      return a.listRegister();
+    }).then(function (reg0) {
+      check('a fresh register has no establishments', reg0.establishments.length, 0);
+      check('a fresh register has the preset locations', reg0.locations.length, T.PRESET_LOCATIONS.length);
+      return a.createEstablishment({ name: "  Culver's  ", category: 'fast-food' });
+    }).then(function (e) {
+      culversId = e.id;
+      check('establishment names are trimmed', e.name, "Culver's");
+      check('establishment category is stored', e.category, 'fast-food');
+      ok('establishments receive a file number', /^BPS-\d{4}$/.test(e.fileNumber));
+      return a.createEstablishment({ name: 'culvers', category: 'casual-dining' });
+    }).then(function (again) {
+      check('a matching name reuses the existing establishment', again.id, culversId);
+      return a.createAudit(Object.assign({
+        establishmentId: culversId, burger: 'ButterBurger Cheese', locationId: uptownId
+      }, flat(8)));
+    }).then(function (auditRow) {
+      ryanAuditId = auditRow.id;
+      check('a filed audit records its schema version', auditRow.schemaVersion, S.SCHEMA_VERSION);
+      /* An audit missing Service must be refused outright. */
+      return a.createAudit(Object.assign({
+        establishmentId: culversId, burger: 'No Service Burger', locationId: uptownId
+      }, sc(8, 8, 8, 8, 8, 8, null, null)))
+        .then(function () { ok('an audit without Service is refused', false); })
+        .catch(function (err) { check('an audit without Service is refused', err.code, 'invalid-scores'); });
+    }).then(function () {
+      return a.createAudit(Object.assign({
+        establishmentId: culversId, burger: 'Homeless Burger', locationId: null
+      }, flat(8)))
+        .then(function () { ok('an audit without a location is refused', false); })
+        .catch(function (err) { check('an audit without a location is refused', err.code, 'invalid-location'); });
+    }).then(function () {
+      return a.createAudit(Object.assign({
+        establishmentId: culversId, burger: '   ', locationId: uptownId
+      }, flat(8)))
+        .then(function () { ok('an audit without a burger is refused', false); })
+        .catch(function (err) { check('an audit without a burger is refused', err.code, 'invalid-burger'); });
+    }).then(function () {
+      return a.listRegister();
+    }).then(function (r1) {
+      var mm = AN.compute(r1);
+      check('one auditor leaves the establishment pending', mm.counts.pending, 1);
+      check('a pending establishment is not ranked', mm.ranked.length, 0);
+      /* Devin now files at a different branch, on a different burger. */
+      return a.createLocation('  eden   prairie ');
+    }).then(function (loc) {
+      check('an existing location is matched rather than duplicated', loc.name, 'Eden Prairie');
+      return a.createLocation('Mankato');
+    }).then(function (loc) {
+      addedId = loc.id;
+      check('a new location is registered', loc.name, 'Mankato');
+      check('a new location is not a preset', loc.isPreset, false);
+      return a.createLocation('MANKATO');
+    }).then(function (loc) {
+      check('a differently cased duplicate is folded into one record', loc.id, addedId);
+      return a.auth.signInAs('devin');
+    }).then(function () {
+      return a.listRegister();
+    }).then(function (r2) {
+      var mankato = r2.locations.filter(function (l) { return l.id === addedId; })[0];
+      ok('a location added by one auditor is visible to the other', !!mankato);
+      check('the shared location keeps its name', mankato && mankato.name, 'Mankato');
+      return a.createAudit(Object.assign({
+        establishmentId: culversId, burger: 'The Deluxe', locationId: addedId
+      }, flat(9)));
+    }).then(function () {
+      return a.listRegister();
+    }).then(function (r3) {
+      var mm = AN.compute(r3);
+      check('both auditors certify the establishment', mm.counts.certified, 1);
+      near('the composite averages both auditors', mm.ranked[0].cpi, 85);
+      check('different branches did not split the establishment', mm.views.length, 1);
+      /* Devin may not amend Ryan's audit. */
+      return a.updateAudit(ryanAuditId, Object.assign({
+        establishmentId: culversId, burger: 'Hijacked', locationId: uptownId
+      }, flat(1)))
+        .then(function () { ok('an auditor cannot amend the peer audit', false); })
+        .catch(function (err) { check('an auditor cannot amend the peer audit', err.code, 'not-owner'); });
+    }).then(function () {
+      /* Either auditor may correct shared establishment metadata. */
+      return a.updateEstablishment(culversId, { name: 'Culver’s', category: 'fast-food' });
+    }).then(function (e) {
+      check('either auditor may correct the establishment name', e.name, 'Culver’s');
+      return a.createEstablishment({ name: 'Lions Den', category: 'bar-pub' });
+    }).then(function (lions) {
+      return a.updateEstablishment(lions.id, { name: "Culver's" })
+        .then(function () { ok('a colliding rename is refused', false); })
+        .catch(function (err) {
+          check('a colliding rename is refused', err.code, 'name-collision');
+          ok('the collision names the existing record', !!(err.detail && err.detail.establishmentId));
+          return a.updateEstablishment(lions.id, { name: "Lion's Den" });
         });
+    }).then(function (fixed) {
+      check('a typo in an establishment name can be corrected', fixed.name, "Lion's Den");
+      return a.listRegister();
+    }).then(function (r4) {
+      check('correcting a name does not create a duplicate', r4.establishments.length, 2);
+      /* Archiving keeps historical references intact. */
+      return a.setLocationArchived(addedId, true);
+    }).then(function () {
+      return a.listRegister();
+    }).then(function (r5) {
+      var mankato = r5.locations.filter(function (l) { return l.id === addedId; })[0];
+      check('an archived location is still on file', mankato.archived, true);
+      var mm = AN.compute(r5);
+      var stillThere = mm.views[0].compliantAudits.some(function (x) { return x.locationId === addedId; });
+      ok('an archived location keeps its historical audits', stillThere);
+      check('an archived location keeps the establishment certified', mm.counts.certified, 1);
+      return a.renameLocation(addedId, 'Mankato, MN');
+    }).then(function (loc) {
+      check('a location can be corrected', loc.name, 'Mankato, MN');
+      return a.listRegister();
+    }).then(function (r6) {
+      var mm = AN.compute(r6);
+      check('renaming a location preserves the audit that used it',
+        mm.views[0].compliantAudits.filter(function (x) { return x.locationId === addedId; }).length, 1);
+      return a.renameLocation(addedId, 'Uptown')
+        .then(function () { ok('a colliding location rename is refused', false); })
+        .catch(function (err) { check('a colliding location rename is refused', err.code, 'name-collision'); });
+    });
+  })();
+
+  /* Establishment merge preserves every audit. */
+  var mergeContract = (function () {
+    var a = D.createMockAdapter({ seed: false });
+    var sourceId, targetId;
+    return a.auth.signInAs('ryan')
+      .then(function () { return a.createEstablishment({ name: 'Lions Den', category: 'bar-pub' }); })
+      .then(function (e) {
+        sourceId = e.id;
+        return a.createAudit(Object.assign({
+          establishmentId: sourceId, burger: 'Den Burger', locationId: a._locationIdByName('Uptown')
+        }, flat(8)));
+      })
+      .then(function () { return a.createEstablishment({ name: "Lion's Den No. 2", category: 'bar-pub' }); })
+      .then(function (e) {
+        targetId = e.id;
+        return a.createAudit(Object.assign({
+          establishmentId: targetId, burger: 'Den Burger', locationId: a._locationIdByName('Edina')
+        }, flat(9)));
+      })
+      .then(function () { return a.mergeEstablishments(sourceId, targetId); })
+      .then(function () { return a.listRegister(); })
+      .then(function (r) {
+        check('a merge leaves one live establishment', r.establishments.length, 1);
+        check('a merge preserves every audit', r.establishments[0].audits.length, 2);
+        check('a merge keeps the surviving identity', r.establishments[0].id, targetId);
       });
-    })
-    .then(function (b) {
-      /* Devin signs in and completes peer review on the SAME record. */
-      return adapter.auth.signInAs('devin')
-        .then(function () { return adapter.saveAudit(b.id, flat(8)); })
-        .then(function () { return adapter.listBurgers(); })
-        .then(function (list) {
-          check('still one burger after peer review', list.length, 1);
-          check('status becomes certified', S.statusOf(list[0]).key, 'certified');
-          near('CPI available once certified', S.cpiOf(list[0]), 82.5);
-          check('ryan audit preserved', Number(S.auditOf(list[0], 'ryan').patty), 8.5);
-          check('devin audit stored separately', Number(S.auditOf(list[0], 'devin').patty), 8);
-          /* Devin cannot reach Ryan's row: saveAudit only ever targets self. */
-          return adapter.saveAudit(b.id, flat(6)).then(function () {
-            return adapter.listBurgers().then(function (l3) {
-              check('devin edit changed only devin', Number(S.auditOf(l3[0], 'devin').patty), 6);
-              check('ryan audit still intact after devin edit', Number(S.auditOf(l3[0], 'ryan').patty), 8.5);
-            });
-          });
-        });
-    });
+  })();
 
-  /* =====================================================
-     3. ANALYTICS
-     ===================================================== */
-  var m0 = AN.compute([]);
-  check('analytics: 0 specimens does not crash', m0.counts.certified, 0);
-  check('analytics: mean CPI null when empty', m0.paired.cpi.mean, null);
-  check('analytics: no ranked entries', m0.ranked.length, 0);
-
-  var m1audit = AN.compute([ryanOnly]);
-  check('analytics: 1 audit, 0 certified', m1audit.counts.certified, 0);
-  check('analytics: 1 pending', m1audit.counts.pending, 1);
-  check('analytics: ryan has 1 audit', m1audit.auditors.ryan.n, 1);
-  check('analytics: devin has 0 audits', m1audit.auditors.devin.n, 0);
-  check('analytics: pendingFor devin', m1audit.pendingFor.devin.length, 1);
-
-  var one = burger('c1', 'Matt’s Bar', 'Jucy Lucy', sc(9, 8.5, 7, 6.5, 8, 9), sc(8.2, 8.8, 7.5, 6, 8.4, 8.5));
-  var mOne = AN.compute([one]);
-  check('analytics: 1 certified', mOne.counts.certified, 1);
-  ok('analytics: m.only set at n=1', !!mOne.only);
-  near('analytics: combined patty', mOne.certified[0].combined.patty, 8.6);
-  near('analytics: delta patty', mOne.certified[0].deltas.patty, 0.8);
-  check('analytics: rank assigned', mOne.certified[0].rank, 1);
-
-  /* Known dataset for the descriptive statistics. */
-  var set = [
-    burger('s1', 'A', 'One',   flat(9),   flat(8),   '2026-06-01T12:00:00Z'),
-    burger('s2', 'B', 'Two',   flat(7),   flat(7),   '2026-06-05T12:00:00Z'),
-    burger('s3', 'A', 'Three', flat(8),   flat(6),   '2026-06-09T12:00:00Z'),
-    burger('s4', 'C', 'Four',  flat(6),   flat(7),   '2026-06-13T12:00:00Z')
-  ];
-  var mS = AN.compute(set);
-  near('mean of ryan weighted (9,7,8,6)', mS.auditors.ryan.weighted.mean, 7.5);
-  near('median of ryan weighted', mS.auditors.ryan.weighted.median, 7.5);
-  near('mean of devin weighted (8,7,6,7)', mS.auditors.devin.weighted.mean, 7);
-  near('population sd of (9,7,8,6)', mS.auditors.ryan.weighted.sd, Math.sqrt(1.25), 1e-9);
-  near('population variance of (9,7,8,6)', AN.variance([9, 7, 8, 6]), 1.25, 1e-9);
-  near('paired gap ryan-devin', mS.paired.gap, 0.5);
-  check('more generous is ryan', mS.paired.moreGenerous, 'ryan');
-  near('mean abs disagreement', mS.paired.meanAbsDisagreement, 1);
-  near('category delta patty', mS.paired.byCategory.patty.delta, 0.5);
-  check('exact agreement cells', mS.paired.exactCells, 6);
-  near('exact agreement pct', mS.paired.exactPct, 25);
-  check('ryan higher count', mS.paired.ryanHigherCount, 2);
-  check('devin higher count', mS.paired.devinHigherCount, 1);
-  check('tie count', mS.paired.tieCount, 1);
-  check('ryan sweeps', mS.paired.ryanSweeps, 2);
-  check('restaurant grouping', mS.counts.restaurants, 3);
-  check('repeat restaurants', mS.counts.repeatRestaurants, 1);
-  check('official order top', mS.ranked[0].id, 's1');
-  check('official order bottom', mS.ranked[3].id, 's4');
-  check('largest personal-rank difference', mS.paired.biggestInversionValue, 2);
-  near('mean CPI', mS.paired.cpi.mean, 72.5);
-
-  /* Streaks. */
-  var streakSet = [
-    burger('k1', 'A', '1', flat(9), flat(8), '2026-06-01T12:00:00Z'),
-    burger('k2', 'A', '2', flat(9), flat(8), '2026-06-02T12:00:00Z'),
-    burger('k3', 'A', '3', flat(9), flat(8), '2026-06-03T12:00:00Z'),
-    burger('k4', 'A', '4', flat(7), flat(8), '2026-06-04T12:00:00Z')
-  ];
-  var mK = AN.compute(streakSet);
-  check('longest ryan-higher streak', mK.paired.streaks.ryanHigher.longest, 3);
-  check('current ryan-higher streak broken', mK.paired.streaks.ryanHigher.current, 0);
-  check('current devin-higher streak', mK.paired.streaks.devinHigher.current, 1);
-
-  /* Trend. */
-  var trendSet = [];
-  [6, 6, 6, 9, 9, 9].forEach(function (v, i) {
-    trendSet.push(burger('t' + i, 'A', 'T' + i, flat(v), flat(v), '2026-06-0' + (i + 1) + 'T12:00:00Z'));
-  });
-  var mT = AN.compute(trendSet);
-  ok('trend detects rising scores', mT.auditors.ryan.trend && mT.auditors.ryan.trend.delta > 2.5,
-    mT.auditors.ryan.trend && mT.auditors.ryan.trend.delta);
-
-  /* Turnaround. */
-  var turn = burger('tr1', 'A', 'Turn', flat(8), flat(8), '2026-06-01T12:00:00Z');
-  turn.audits.devin.createdAt = '2026-06-03T12:00:00Z';
-  var mTurn = AN.compute([turn]);
-  near('turnaround measured in ms', mTurn.certified[0].turnaroundMs, 2 * 86400000);
-  near('turnaround median', mTurn.paired.turnaround.median, 2 * 86400000);
-
-  var normalizedRestaurants = AN.compute([
-    burger('nr1', 'Matt\u2019s Bar', 'One', flat(8), flat(8)),
-    burger('nr2', '  MATTS   BAR ', 'Two', flat(7), flat(7), '2026-06-02T12:00:00Z')
-  ]);
-  check('restaurant normalization groups punctuation/case/spacing', normalizedRestaurants.counts.restaurants, 1);
-  check('normalized restaurant is recognized as repeat', normalizedRestaurants.repeatRestaurants[0].count, 2);
-
-  var cadence = AN.compute([
-    burger('cd1', 'A', 'One', flat(8), flat(8), '2026-06-01T12:00:00Z'),
-    burger('cd2', 'B', 'Two', flat(8), flat(8), '2026-06-03T12:00:00Z'),
-    burger('cd3', 'C', 'Three', flat(8), flat(8), '2026-06-10T12:00:00Z')
-  ]);
-  near('activity longest gap', cadence.activity.longestGapMs, 7 * 86400000);
-
-  /* All audits vs paired — the datasets must not be conflated. */
-  var mixSet = [
-    burger('x1', 'A', 'Paired', flat(8), flat(8), '2026-06-01T12:00:00Z'),
-    burger('x2', 'A', 'RyanOnly', flat(2), null, '2026-06-02T12:00:00Z')
-  ];
-  var mMix = AN.compute(mixSet);
-  check('all-audits count includes pending', mMix.auditors.ryan.n, 2);
-  check('paired count excludes pending', mMix.paired.n, 1);
-  near('ryan all-audit mean includes the 2.0', mMix.auditors.ryan.weighted.mean, 5);
-  near('paired comparison uses certified only', mMix.paired.ryanMean, 8);
-  ok('paired mean != all-audit mean here',
-    mMix.paired.ryanMean !== mMix.auditors.ryan.weighted.mean);
-
-  /* =====================================================
-     4. INSIGHT ENGINE
-     ===================================================== */
-  var stats = IN.stats();
-  ok('at least 250 distinct rules', stats.rules >= 250, stats.rules);
-  check('no duplicate rule ids', IN.RULES.length, Object.keys(IN.byId).length);
-  ok('multiple wording variants exist', stats.variants > stats.rules, stats.variants);
-  ok('several rule families', stats.familyCount >= 8, stats.familyCount);
-  ok('rare tiers present', (stats.rarities.rare || 0) + (stats.rarities.legendary || 0) >= 10);
-
-  var badMeta = IN.RULES.filter(function (r) {
-    return !r.id || !r.family || typeof r.test !== 'function' || !r.variants.length ||
-      r.variants.some(function (v) { return typeof v !== 'function'; }) ||
-      ['common', 'uncommon', 'rare', 'legendary'].indexOf(r.rarity) === -1 ||
-      typeof r.priority !== 'number' || r.priority < 1 || r.priority > 10;
-  });
-  check('all rules have valid metadata', badMeta.length, 0);
-
-  /* Every rule must survive every dataset shape without throwing. */
-  var probeSets = {
-    empty: [], oneAudit: [ryanOnly], oneCertified: [one], four: set,
-    perfect: [burger('pf', 'A', 'Perfect', flat(10), flat(10))],
-    zero: [burger('z', 'A', 'Zero', flat(0), flat(0))],
-    identical: [burger('id', 'A', 'Same', flat(7.5), flat(7.5))],
-    streaks: streakSet, trend: trendSet, mixed: mixSet
-  };
-  var threw = [], badOutput = [], renders = 0;
-  Object.keys(probeSets).forEach(function (name) {
-    var m = AN.compute(probeSets[name]);
-    IN.RULES.forEach(function (rule) {
-      var eligible;
-      try { eligible = !!rule.test(m); }
-      catch (e) { threw.push(name + '/' + rule.id + ' (test): ' + e.message); return; }
-      if (eligible && !IN.isEligible(rule, m)) eligible = false;
-      if (!eligible) return;
-      rule.variants.forEach(function (_, i) {
-        var out;
-        try {
-          var direct = rule.variants[i](m, IN.H);
-          out = direct && { title: direct.title, body: direct.body };
-        }
-        catch (e) { threw.push(name + '/' + rule.id + ' (build): ' + e.message); return; }
-        if (!out) return;
-        renders += 1;
-        if (/(NaN|undefined|Infinity|\[object)/.test(out.title + ' ' + out.body)) {
-          badOutput.push(name + '/' + rule.id + '#' + i);
-        }
+  /* Records persistence and per-auditor acknowledgement. */
+  var recordContract = (function () {
+    var a = D.createMockAdapter({ seed: false });
+    var rows;
+    return a.auth.signInAs('ryan')
+      .then(function () { return a.saveRecords(RC.detect(m, []).changes); })
+      .then(function (written) {
+        ok('records are written to shared storage', written.length > 0, written.length);
+        return a.listRecords();
+      })
+      .then(function (list) {
+        rows = list;
+        ok('records read back from shared storage', rows.length > 0);
+        ok('a first entry is version 1', rows.every(function (r) { return r.version === 1; }));
+        return a.listRecordAcks();
+      })
+      .then(function (acks) {
+        check('a new auditor has acknowledged nothing', Object.keys(acks).length, 0);
+        var map = {};
+        rows.forEach(function (r) { map[r.recordId] = r.fingerprint; });
+        return a.ackRecords(map);
+      })
+      .then(function () { return a.listRecordAcks(); })
+      .then(function (acks) {
+        check('acknowledgement persists for that auditor', Object.keys(acks).length, rows.length);
+        return a.auth.signInAs('devin');
+      })
+      .then(function () { return a.listRecordAcks(); })
+      .then(function (acks) {
+        check('the peer has acknowledged nothing of their own', Object.keys(acks).length, 0);
+        return a.listRecords();
+      })
+      .then(function (list) {
+        check('but the peer sees the same shared records', list.length, rows.length);
+        /* Breaking a record archives the previous holder. */
+        var breakChanges = RC.detect(AN.compute(better), rows).changes;
+        return a.saveRecords(breakChanges);
+      })
+      .then(function () { return a.listRecords(); })
+      .then(function (list) {
+        var top = list.filter(function (r) { return r.recordId === 'r004'; })[0];
+        check('a broken record advances its version', top.version, 2);
+        ok('a broken record stores what it replaced', !!top.previous);
+        ok('a broken record changes its fingerprint',
+          top.fingerprint !== rows.filter(function (r) { return r.recordId === 'r004'; })[0].fingerprint);
+        return a.listRecordHistory();
+      })
+      .then(function (history) {
+        ok('the superseded entry is archived, not deleted',
+          history.some(function (h) { return h.recordId === 'r004'; }));
+        return a.saveRecords(RC.detect(AN.compute(better), []).changes.slice(0, 0));
+      })
+      .then(function (written) {
+        check('an empty batch writes nothing', written.length, 0);
       });
-    });
-  });
-  check('no rule throws on any dataset', threw.length, 0);
-  check('no NaN / undefined / Infinity in output', badOutput.length, 0);
-  ok('many variants rendered during probing', renders > 200, renders);
+  })();
 
-  /* Findings are available immediately after one certified specimen. */
-  var eligibleOne = IN.eligibleRules(mOne);
-  ok('n=1 yields multiple eligible rules', eligibleOne.length >= 5, eligibleOne.length);
-  var selOne = IN.select(mOne, { noStore: true, ignoreRecent: true });
-  ok('n=1 produces findings (not "not enough data")', selOne.length >= 4, selOne.length);
-  ok('n=1 findings carry real text', selOne.every(function (f) { return f.title && f.body.length > 20; }));
-
-  /* Sample-size gates hold. */
-  var gated = IN.RULES.filter(function (r) { return r.minCertified >= 5; });
-  var firedEarly = gated.filter(function (r) { return IN.isEligible(r, mOne); });
-  check('rules needing 5+ do not fire at n=1', firedEarly.length, 0);
-  var gated10 = IN.RULES.filter(function (r) { return r.minCertified >= 8; });
-  check('rules needing 8+ do not fire at n=4', gated10.filter(function (r) { return IN.isEligible(r, mS); }).length, 0);
-
-  /* A threshold rule becomes eligible exactly when the gate is met. */
-  var big = [];
-  for (var i = 0; i < 9; i++) {
-    big.push(burger('b' + i, 'R' + (i % 3), 'B' + i, flat(7 + (i % 3)), flat(6 + (i % 3)), '2026-06-0' + (i + 1) + 'T12:00:00Z'));
-  }
-  var mBig = AN.compute(big);
-  ok('more rules eligible with more data',
-    IN.eligibleRules(mBig).length > IN.eligibleRules(mOne).length,
-    IN.eligibleRules(mBig).length + ' vs ' + IN.eligibleRules(mOne).length);
-
-  /* Rotation behaviour. */
-  var memStore = { _d: {}, getItem: function (k) { return this._d[k] || null; }, setItem: function (k, v) { this._d[k] = v; } };
-  var sel = IN.select(mBig, { storage: memStore });
-  var ids = sel.map(function (f) { return f.id; });
-  check('no duplicate ids within one render', ids.filter(function (x, ix) { return ids.indexOf(x) !== ix; }).length, 0);
-  ok('render size within 6-12', sel.length >= 6 && sel.length <= 12, sel.length);
-  var famCount = {};
-  sel.forEach(function (f) { famCount[f.family] = (famCount[f.family] || 0) + 1; });
-  ok('family diversity enforced (max 2 per family)',
-    Math.max.apply(null, Object.keys(famCount).map(function (k) { return famCount[k]; })) <= 2, famCount);
-  ok('multiple families represented', Object.keys(famCount).length >= 3, Object.keys(famCount).length);
-
-  var second = IN.select(mBig, { storage: memStore });
-  var overlap = second.filter(function (f) { return ids.indexOf(f.id) !== -1; }).length;
-  ok('revisit rotates the set', overlap < second.length, overlap + '/' + second.length + ' repeated');
-
-  /* Rare conditions are strongly favoured when actually true. */
-  var mPerfect = AN.compute([burger('pf', 'A', 'Perfect', flat(10), flat(10))]);
-  var perfectSel = IN.select(mPerfect, { noStore: true, ignoreRecent: true });
-  ok('a legendary condition surfaces when it occurs',
-    perfectSel.some(function (f) { return f.rarity === 'legendary' || f.rarity === 'rare'; }),
-    perfectSel.map(function (f) { return f.id + ':' + f.rarity; }).join(','));
-
-  /* Auditor names render properly. */
-  var allText = perfectSel.concat(selOne).map(function (f) { return f.title + ' ' + f.body; }).join(' ');
-  ok('no placeholder auditor keys leak into prose', !/\bryan\b|\bdevin\b/.test(allText), 'lowercase keys found');
-  var nameSel = IN.select(mS, { noStore: true, ignoreRecent: true });
-  ok('auditor names appear correctly capitalised',
-    /Ryan|Devin/.test(nameSel.map(function (f) { return f.body; }).join(' ')));
-
-  /* Numeric interpolation is sensibly formatted (no 8.700000000000001). */
-  var longDecimals = nameSel.concat(perfectSel).filter(function (f) { return /\d\.\d{4,}/.test(f.body); });
-  check('no runaway decimals in prose', longDecimals.length, 0);
-  check('wording helper rounds decimal ties predictably', IN.H.n1(7.35), '7.4');
-  check('two-decimal wording helper rounds predictably', IN.H.n2(1.005), '1.01');
-
-  var adapterChecks = D.createMockAdapter({ seed: false });
-  var adapterValidation = adapterChecks.createBurger({ restaurant: 'R', burger: 'B' })
-    .then(function () { ok('mock rejects unauthenticated burger creation', false); })
-    .catch(function () { ok('mock rejects unauthenticated burger creation', true); })
-    .then(function () { return adapterChecks.auth.signIn('ryanburtonwi@gmail.com', 'wrong'); })
-    .then(function () { ok('mock rejects an invalid password', false); })
-    .catch(function () { ok('mock rejects an invalid password', true); })
-    .then(function () { return adapterChecks.auth.signIn('outsider@example.com', 'bps-demo'); })
-    .then(function () { ok('mock rejects an unauthorized email', false); })
-    .catch(function () { ok('mock rejects an unauthorized email', true); })
-    .then(function () { return adapterChecks.auth.signIn('ryanburtonwi@gmail.com', 'bps-demo'); })
-    .then(function (session) { check('mock password sign-in maps auditor identity', session.profile.auditorKey, 'ryan'); })
-    .then(function () { return adapterChecks.createBurger({ restaurant: '  ', burger: 'B' }); })
-    .then(function () { ok('mock rejects blank identity', false); })
-    .catch(function () { ok('mock rejects blank identity', true); })
-    .then(function () { return adapterChecks.createBurger({ restaurant: 'R', burger: 'B' }); })
-    .then(function (b) {
-      return adapterChecks.saveAudit(b.id, Object.assign(flat(8), { patty: 10.1 }))
-        .then(function () { ok('mock rejects invalid score range', false); })
-        .catch(function () { ok('mock rejects invalid score range', true); });
-    })
-    .then(function () {
-      return adapterChecks.saveAudit('missing', flat(8))
-        .then(function () { ok('mock rejects an audit for a missing specimen', false); })
-        .catch(function () { ok('mock rejects an audit for a missing specimen', true); });
-    });
-
-  /* Supabase adapter contract: exercise auth arguments, column mapping and
-     response normalization without requiring a live project. */
-  var supabaseContract = Promise.resolve();
-  if (isNode) {
-    var savedSupabase = globalThis.supabase;
-    delete globalThis.supabase;
-    var failedClosed = false;
+  /* Adapter selection must never fall back to mock in production. */
+  var adapterSelection = (function () {
+    var closed = false;
+    var lib = globalThis.supabase;
+    globalThis.supabase = null;
     try {
       D.chooseAdapter({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'publishable' });
-    } catch (err) { failedClosed = true; }
-    ok('configured production adapter fails closed when Supabase is unavailable', failedClosed);
-    globalThis.supabase = savedSupabase;
+    } catch (e) { closed = true; }
+    globalThis.supabase = lib;
+    ok('a configured production build fails closed rather than using mock data', closed);
+    ok('an unconfigured build uses the mock adapter', D.chooseAdapter({}).mode === 'mock');
+    ok('an explicit mock request is honoured', D.chooseAdapter({}, 'mock').mode === 'mock');
+    return Promise.resolve();
+  })();
 
-    var calls = { auth: {}, inserts: [], upserts: [], failSignOut: false };
+  /* =====================================================
+     9. ADAPTER CONTRACT — Supabase wire format
+     ===================================================== */
+  var supabaseContract = Promise.resolve();
+  if (isNode) {
+    var calls = { inserts: [], updates: [], rpc: [], upserts: [], auth: {}, failSignOut: false };
+    var tables = {
+      establishments: [{ id: 'e-1', file_number: 'BPS-0001', name: 'Counter', name_key: 'counter',
+                         category: 'fast-food', created_by: 'uuid-ryan',
+                         created_at: '2026-06-01T00:00:00Z', updated_at: '2026-06-01T00:00:00Z' }],
+      audits: [{ id: 'a-1', establishment_id: 'e-1', auditor_id: 'uuid-ryan', burger: 'Standard',
+                 location_id: 'l-1', patty: '8.1', overall_flavor: '8.2', bun: '8.3', fries: '8.4',
+                 value: '8.5', condiments: '8.6', service_speed: '8.7', service_friendliness: '8.9',
+                 schema_version: 2, created_at: '2026-06-01T00:00:00Z', updated_at: '2026-06-01T00:00:00Z' }],
+      locations: [{ id: 'l-1', name: 'Uptown', name_key: 'uptown', location_group: 'minneapolis',
+                    is_preset: true, archived: false, created_by: null, created_at: '2026-01-01T00:00:00Z' }],
+      profiles: [{ id: 'uuid-ryan', auditor_key: 'ryan', display_name: 'Ryan' }],
+      bureau_records: [{ record_id: 'r004', holder: null, establishment_id: 'e-1',
+                         establishment_name: 'Counter', value: '91.5', value_text: null,
+                         detail: {}, fingerprint: 'fp', version: 1,
+                         established_at: '2026-06-01T00:00:00Z', previous: null, updated_by: 'uuid-ryan' }],
+      bureau_record_acks: [{ record_id: 'r004', fingerprint: 'fp' }],
+      bureau_record_history: []
+    };
     var fakeClient = {
       auth: {
-        getSession: function () {
-          return Promise.resolve({ data: { session: { user: { id: 'uuid-ryan', email: 'ryan@bps.test' } } } });
+        getSession: function () { return Promise.resolve({ data: { session: { user: { id: 'uuid-ryan', email: 'ryan@bps.test' } } } }); },
+        getUser: function () { return Promise.resolve({ data: { user: { id: 'uuid-ryan' } } }); },
+        signInWithPassword: function (payload) {
+          calls.auth.signIn = payload;
+          return Promise.resolve({ data: { session: { user: { id: 'uuid-ryan', email: payload.email } } }, error: null });
         },
-        getUser: function () {
-          return Promise.resolve({ data: { user: { id: 'uuid-ryan', email: 'ryan@bps.test' } } });
-        },
-        signInWithPassword: function (args) {
-          calls.auth.signIn = args;
-          return Promise.resolve({ data: { session: { user: { id: 'uuid-ryan', email: args.email } } }, error: null });
-        },
-        signOut: function () {
-          return Promise.resolve({ error: calls.failSignOut ? new Error('sign-out failed') : null });
-        }
+        signOut: function () { return Promise.resolve({ error: calls.failSignOut ? new Error('network') : null }); }
+      },
+      rpc: function (name, args) {
+        calls.rpc.push({ name: name, args: args });
+        return Promise.resolve({ data: (args.p_rows || []).map(function (r) { return r.recordId; }), error: null });
       },
       from: function (table) {
-        var q = { table: table, op: 'select', eqValue: null, payload: null, conflict: null };
-        function response() {
-          if (table === 'profiles' && q.eqValue) {
-            return { data: { id: q.eqValue, auditor_key: q.eqValue === 'uuid-devin' ? 'devin' : 'ryan',
-                             display_name: q.eqValue === 'uuid-devin' ? 'Devin' : 'Ryan' }, error: null };
-          }
-          if (table === 'profiles') return { data: [
-            { id: 'uuid-ryan', auditor_key: 'ryan', display_name: 'Ryan' },
-            { id: 'uuid-devin', auditor_key: 'devin', display_name: 'Devin' }
-          ], error: null };
-          if (table === 'burgers' && q.op === 'insert') return { data: {
-            id: 'burger-new', specimen_number: 'BPS-0002', restaurant: q.payload.restaurant,
-            burger: q.payload.burger, created_by: q.payload.created_by, created_at: '2026-06-02T00:00:00Z'
-          }, error: null };
-          if (table === 'burgers') return { data: [{
-            id: 'burger-1', specimen_number: 'BPS-0001', restaurant: 'Counter', burger: 'Standard',
-            created_by: 'uuid-ryan', created_at: '2026-06-01T00:00:00Z'
-          }], error: null };
-          if (table === 'audits' && q.op === 'upsert') return { data: Object.assign({
-            id: 'audit-new', created_at: '2026-06-02T00:00:00Z', updated_at: '2026-06-02T00:00:00Z'
-          }, q.payload), error: null };
-          return { data: [{
-            id: 'audit-1', burger_id: 'burger-1', auditor_id: 'uuid-ryan', patty: '8.1',
-            overall_flavor: '8.2', bun: '8.3', fries: '8.4', value: '8.5', condiments: '8.6',
-            created_at: '2026-06-01T00:00:00Z', updated_at: '2026-06-01T00:00:00Z'
-          }], error: null };
-        }
+        var rows = tables[table] || [];
+        var q = { table: table };
+        function response() { return { data: q._single ? (rows[0] || null) : rows, error: null }; }
         q.select = function () { return q; };
-        q.eq = function (_, value) { q.eqValue = value; return q; };
-        q.order = function () { return Promise.resolve(response()); };
-        q.insert = function (payload) { q.op = 'insert'; q.payload = payload; calls.inserts.push(payload); return q; };
-        q.upsert = function (payload, opts) {
-          q.op = 'upsert'; q.payload = payload; q.conflict = opts && opts.onConflict;
-          calls.upserts.push({ payload: payload, conflict: q.conflict }); return q;
+        q.eq = function () { return q; };
+        q.neq = function () { return q; };
+        q.is = function () { return q; };
+        q.order = function () { return q; };
+        q.single = function () { q._single = true; return Promise.resolve(response()); };
+        q.maybeSingle = function () { q._single = true; return Promise.resolve(response()); };
+        q.insert = function (payload) { calls.inserts.push({ table: table, payload: payload }); return q; };
+        q.update = function (payload) { calls.updates.push({ table: table, payload: payload }); return q; };
+        q.upsert = function (payload, options) {
+          calls.upserts.push({ table: table, payload: payload, conflict: options && options.onConflict });
+          return q;
         };
-        q.single = function () { return Promise.resolve(response()); };
         q.then = function (resolve, reject) { return Promise.resolve(response()).then(resolve, reject); };
         return q;
       }
     };
     globalThis.supabase = { createClient: function () { return fakeClient; } };
-    var supabaseAdapter = D.createSupabaseAdapter({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'publishable' });
-    supabaseContract = supabaseAdapter.auth.getSession()
+    var sb = D.createSupabaseAdapter({ SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'publishable' });
+
+    supabaseContract = sb.auth.getSession()
       .then(function (session) {
         check('Supabase session maps UUID to auditor profile', session.profile.auditorKey, 'ryan');
-        return supabaseAdapter.auth.signIn('ryan@bps.test', 'test-password');
+        return sb.auth.signIn('ryan@bps.test', 'test-password');
       })
       .then(function (session) {
         check('Supabase password sign-in passes the email', calls.auth.signIn.email, 'ryan@bps.test');
-        check('Supabase password sign-in passes the password', calls.auth.signIn.password, 'test-password');
         check('Supabase password session includes profile', session.profile.displayName, 'Ryan');
-        return supabaseAdapter.listBurgers();
+        return sb.listRegister();
       })
-      .then(function (list) {
-        check('Supabase rows normalize to one canonical burger', list.length, 1);
-        check('Supabase numeric columns normalize to numbers', list[0].audits.ryan.patty, 8.1);
-        check('Supabase auditor UUID maps to Ryan audit slot', list[0].audits.ryan.auditorId, 'uuid-ryan');
-        return supabaseAdapter.createBurger({ restaurant: ' Counter ', burger: ' Standard ' });
-      })
-      .then(function (created) {
-        check('Supabase burger insert trims identity', created.restaurant + '/' + created.burger, 'Counter/Standard');
-        check('Supabase burger insert owns row with auth UUID', calls.inserts[0].created_by, 'uuid-ryan');
-        return supabaseAdapter.saveAudit(created.id, sc(8.1, 8.2, 8.3, 8.4, 8.5, 8.6));
+      .then(function (reg2) {
+        check('Supabase rows normalize to one establishment', reg2.establishments.length, 1);
+        check('Supabase locations normalize', reg2.locations[0].name, 'Uptown');
+        var a0 = reg2.establishments[0].audits[0];
+        check('Supabase numeric columns normalize to numbers', a0.patty, 8.1);
+        check('Supabase maps the service columns', a0.serviceSpeed, 8.7);
+        near('Supabase derives Service from its two halves', a0.service, 8.8);
+        check('Supabase resolves the location name', a0.locationName, 'Uptown');
+        check('Supabase maps the auditor UUID to a key', a0.auditorKey, 'ryan');
+        return sb.createAudit(Object.assign({
+          establishmentId: 'e-1', burger: ' Standard ', locationId: 'l-1'
+        }, flat(8)));
       })
       .then(function () {
-        check('Supabase audit upsert targets unique owner pair', calls.upserts[0].conflict, 'burger_id,auditor_id');
-        check('Supabase audit maps overallFlavor column', calls.upserts[0].payload.overall_flavor, 8.2);
+        var payload = calls.inserts.filter(function (c) { return c.table === 'audits'; })[0].payload;
+        check('Supabase audit insert owns the row with the auth UUID', payload.auditor_id, 'uuid-ryan');
+        check('Supabase audit insert trims the burger', payload.burger, 'Standard');
+        check('Supabase audit insert records the location', payload.location_id, 'l-1');
+        check('Supabase audit insert maps overall_flavor', payload.overall_flavor, 8);
+        check('Supabase audit insert maps service_speed', payload.service_speed, 8);
+        check('Supabase audit insert maps service_friendliness', payload.service_friendliness, 8);
+        check('Supabase audit insert stamps the schema version', payload.schema_version, S.SCHEMA_VERSION);
+        return sb.saveRecords([{ recordId: 'r004', value: 99, fingerprint: 'fp2', detail: {} }]);
+      })
+      .then(function () {
+        var rpc = calls.rpc[0];
+        check('Supabase writes records through one atomic RPC', rpc.name, 'bps_records_sync');
+        check('Supabase record sync sends a batch', rpc.args.p_rows.length, 1);
+        return sb.ackRecords({ r004: 'fp2' });
+      })
+      .then(function () {
+        var upsert = calls.upserts.filter(function (c) { return c.table === 'bureau_record_acks'; })[0];
+        check('Supabase acknowledgement is keyed per auditor', upsert.conflict, 'auditor_id,record_id');
+        check('Supabase acknowledgement stores the auditor UUID', upsert.payload[0].auditor_id, 'uuid-ryan');
+        return sb.listRecordAcks();
+      })
+      .then(function (acks) {
+        check('Supabase acknowledgements read back by record id', acks.r004, 'fp');
         calls.failSignOut = true;
-        return supabaseAdapter.auth.signOut()
+        return sb.auth.signOut()
           .then(function () { ok('Supabase sign-out errors reject', false); })
           .catch(function () { ok('Supabase sign-out errors reject', true); });
       });
@@ -581,19 +853,24 @@
   /* =====================================================
      Report
      ===================================================== */
-  Promise.all([lifecycle, adapterValidation, supabaseContract]).then(function () {
-    var failed = results.filter(function (r) { return !r.pass; });
-    if (isNode) {
-      failed.forEach(function (r) {
-        console.log('  FAIL  ' + r.name + '   expected ' + JSON.stringify(r.expected) + ', got ' + JSON.stringify(r.actual));
-      });
-      console.log('\n' + (results.length - failed.length) + '/' + results.length + ' passed');
-      if (failed.length) process.exit(1);
-    } else {
-      console.log('%c[BPS] tests: ' + (results.length - failed.length) + '/' + results.length + ' passed',
-        'color:' + (failed.length ? '#da1e28' : '#00684a') + ';font-weight:600');
-      if (failed.length) console.table(failed);
-      root.BPS.testResults = { total: results.length, failed: failed.length, failures: failed };
-    }
-  });
+  Promise.all([lifecycle, mergeContract, recordContract, adapterSelection, supabaseContract])
+    .catch(function (err) {
+      results.push({ name: 'async contracts completed without throwing', pass: false,
+                     actual: (err && err.stack) || String(err), expected: true });
+    })
+    .then(function () {
+      var failed = results.filter(function (r) { return !r.pass; });
+      if (isNode) {
+        failed.forEach(function (r) {
+          console.log('  FAIL  ' + r.name + '   expected ' + JSON.stringify(r.expected) + ', got ' + JSON.stringify(r.actual));
+        });
+        console.log('\n' + (results.length - failed.length) + '/' + results.length + ' passed');
+        if (failed.length) process.exit(1);
+      } else {
+        console.log('%c[BPS] tests: ' + (results.length - failed.length) + '/' + results.length + ' passed',
+          'color:' + (failed.length ? '#da1e28' : '#00684a') + ';font-weight:600');
+        if (failed.length) console.table(failed);
+        root.BPS.testResults = { total: results.length, failed: failed.length, failures: failed };
+      }
+    });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

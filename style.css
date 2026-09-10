@@ -1867,3 +1867,535 @@ main { flex: 1 0 auto; }
   .bps-seismo__paper { transform: translateX(-2rem); }
   .bps-missing__decimal { opacity: .25; transform: none; }
 }
+
+/* =============================================================
+   19. BPS v2 — filters, Service, establishment file, Records Office
+
+   Everything below reads only the semantic mode variables, so each
+   block works unchanged inside .band--dark or .band--light.
+   ============================================================= */
+
+/* Any block below that sets an explicit `display` would otherwise beat the
+   user-agent's [hidden] rule, so state the intent once and for all. */
+[hidden] { display: none !important; }
+
+/* ---------- Five-cell workflow nav ---------- */
+.viewnav__track--five { grid-template-columns: repeat(5, 1fr); }
+.viewnav__track--five .viewnav__btn {
+  font-size: .6875rem;      /* five cells must still fit a 360px viewport */
+  letter-spacing: -.1px;
+  padding-inline: .125rem;
+}
+@media (min-width: 26.5625rem) {
+  .viewnav__track--five .viewnav__btn { font-size: .75rem; }
+}
+@media (min-width: 48rem) {
+  .viewnav__track--five .viewnav__btn { font-size: .875rem; }
+}
+
+/* ---------- Four-tile stat strip on Rankings ---------- */
+.stats { grid-template-columns: repeat(2, 1fr); }
+.stats--three { grid-template-columns: repeat(3, 1fr); }
+/* The third tile carries a date, which needs less display weight. */
+.stats--three .stat__value { font-size: 1.25rem; }
+@media (min-width: 26.5625rem) {
+  .stats { grid-template-columns: repeat(4, 1fr); }
+  .stats--three { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ---------- Rankings filters ---------- */
+.filters {
+  display: grid;
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+  padding: .875rem;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+}
+.filters__field { display: grid; gap: .375rem; min-width: 0; }
+.filters__label {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.filters__clear { justify-self: start; }
+.filters__note {
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--tx-muted);
+}
+@media (min-width: 30rem) {
+  .filters { grid-template-columns: 1fr 1fr; align-items: end; }
+  .filters__clear, .filters__note { grid-column: 1 / -1; }
+}
+
+/* A select must match .input geometry exactly, including the 16px
+   font-size that stops iOS Safari zooming the viewport on focus. */
+.input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.25rem;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.05rem) 55%, calc(100% - .7rem) 55%;
+  background-size: .35rem .35rem, .35rem .35rem;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+/* ---------- Form additions ---------- */
+#eval-identity-new,
+#eval-identity-review { display: grid; gap: 1.5rem; }
+#eval-identity-review { gap: 1rem; }
+
+.field__hint {
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--tx-muted);
+}
+.field__label--sub { letter-spacing: 1.5px; font-size: .625rem; }
+
+.addloc {
+  display: grid;
+  gap: .5rem;
+  margin-top: .625rem;
+  padding: .875rem;
+  border: 1px dashed var(--bd);
+  border-radius: var(--r-input);
+}
+.addloc__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+
+/* ---------- Service block ----------
+   Visually one category made of two entered figures, so nobody
+   mistakes Speed and Friendliness for separate weighted categories. */
+.servicebox {
+  margin-top: 1rem;
+  padding: .875rem;
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  background: var(--surface-alt, var(--surface));
+}
+.servicebox__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.servicebox__label {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-strong);
+}
+.servicebox__value {
+  font-family: var(--f-serif);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--green-fn);
+  font-variant-numeric: tabular-nums;
+}
+.servicebox__note {
+  margin-top: .375rem;
+  font-size: .75rem;
+  line-height: 1.5;
+  color: var(--tx-faint);
+}
+.servicebox .score:first-child { border-top: 1px solid var(--bd-soft); margin-top: .5rem; }
+
+/* ---------- Establishment particulars ---------- */
+.estedit { display: grid; gap: 1rem; }
+.estedit__actions { display: flex; }
+.tag--legacy { color: var(--tx-muted); border-style: dashed; }
+
+.exrec__basis,
+.exrec__sub,
+.exrec__legacy {
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--tx-muted);
+}
+.exrec__sub { font-family: var(--f-mono); font-size: .75rem; letter-spacing: .3px; }
+.exrec__legacy { color: var(--tx-faint); font-style: italic; }
+
+/* ---------- Audit history ---------- */
+.auditrow {
+  display: grid;
+  gap: .5rem;
+  padding: 1rem;
+  margin-bottom: .75rem;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+}
+.auditrow--legacy { border-style: dashed; }
+.auditrow__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.auditrow__who {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.auditrow__score {
+  font-family: var(--f-serif);
+  font-size: 1.375rem;
+  line-height: 1;
+  color: var(--tx-strong);
+  font-variant-numeric: tabular-nums;
+}
+.auditrow__burger {
+  font-family: var(--f-serif);
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  color: var(--tx-strong);
+}
+.auditrow__meta,
+.auditrow__service {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  letter-spacing: .3px;
+  color: var(--tx-faint);
+}
+.auditrow__cells {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem .75rem;
+  padding-top: .5rem;
+  border-top: 1px solid var(--bd-soft);
+}
+@media (min-width: 30rem) { .auditrow__cells { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.auditrow__cell { display: flex; justify-content: space-between; gap: .5rem; min-width: 0; }
+.auditrow__cellkey {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  letter-spacing: .3px;
+  color: var(--tx-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auditrow__cellval { font-variant-numeric: tabular-nums; font-size: .8125rem; color: var(--tx); }
+.auditrow__flag {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  line-height: 1.5;
+  letter-spacing: .3px;
+  color: var(--tx-muted);
+}
+.auditrow .btn { justify-self: start; }
+
+/* =============================================================
+   Records Office
+   ============================================================= */
+.recordbar {
+  display: grid;
+  gap: .75rem;
+  margin-bottom: 1.25rem;
+}
+.recordbar .linkbtn { justify-self: start; }
+@media (min-width: 30rem) {
+  .recordbar { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .recordbar .linkbtn { justify-self: end; padding-bottom: .75rem; }
+}
+
+.recentry {
+  position: relative;
+  display: grid;
+  gap: .75rem;
+  padding: 1.125rem;
+  margin-bottom: .75rem;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-left: 3px solid var(--green-fn);
+  border-radius: var(--r-card);
+}
+.recentry__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.recentry__titlewrap { min-width: 0; }
+.recentry__title {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+  line-height: 1.5;
+}
+.recentry__subject {
+  font-family: var(--f-serif);
+  font-size: 1.125rem;
+  line-height: 1.3;
+  color: var(--tx-strong);
+  margin-top: .1875rem;
+}
+.recentry__value {
+  flex: none;
+  font-family: var(--f-serif);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--green-fn);
+  font-variant-numeric: tabular-nums;
+}
+.recentry__meta {
+  display: grid;
+  gap: .25rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--bd-soft);
+  list-style: none;
+}
+.recentry__metaitem { display: flex; justify-content: space-between; gap: .75rem; }
+.recentry__metakey {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+.recentry__metaval { font-size: .8125rem; color: var(--tx); text-align: right; min-width: 0; }
+.recentry__flag {
+  justify-self: start;
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: .1875rem .5rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--bd);
+  color: var(--tx-muted);
+}
+.recentry__open { justify-self: start; }
+
+/* =============================================================
+   The proclamation — a record entering Bureau history.
+
+   Institutional, not celebratory: a document being stamped, not a
+   trophy. Fixed overlay, dismissed only by the auditor.
+   ============================================================= */
+/* An explicit display value would otherwise beat the UA's [hidden] rule. */
+.proclaim-host[hidden] { display: none; }
+.proclaim-host {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(0, 30, 43, .72);
+  overflow-y: auto;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: proclaim-veil 220ms ease-out both;
+}
+.proclaim-shell { width: 100%; max-width: 32rem; }
+
+.proclaim {
+  position: relative;
+  display: grid;
+  gap: 1.125rem;
+  padding: 1.5rem 1.25rem 1.25rem;
+  background: var(--white);
+  color: #08151b;
+  border: 1px solid var(--silver);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-forest);
+  overflow: hidden;
+  animation: proclaim-rise 320ms cubic-bezier(.2, .8, .3, 1) both;
+}
+/* The green rule along the top is the Bureau's seal colour. */
+.proclaim::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--green-fn), var(--green), var(--green-fn));
+}
+.proclaim--broken::before {
+  background: linear-gradient(90deg, #8a5a00, #e0a300, #8a5a00);
+}
+
+/* The seal is absolutely positioned; the heading block keeps clear of it. */
+.proclaim__head { display: grid; gap: .5rem; padding-right: 4.25rem; }
+.proclaim__code {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--green-fn);
+}
+.proclaim--broken .proclaim__code { color: #8a5a00; }
+.proclaim__title {
+  font-family: var(--f-serif);
+  font-size: 1.625rem;
+  line-height: 1.15;
+  letter-spacing: -.4px;
+}
+.proclaim__lead { font-size: .875rem; line-height: 1.55; color: var(--cool-dim); }
+
+.proclaim__seal {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 3.25rem;
+  height: 3.25rem;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--green-fn);
+  border-radius: 50%;
+  color: var(--green-fn);
+  opacity: .28;
+  animation: proclaim-stamp 460ms cubic-bezier(.2, .9, .25, 1) both;
+}
+.proclaim--broken .proclaim__seal { border-color: #8a5a00; color: #8a5a00; }
+.proclaim__sealmark { font-size: 1.375rem; line-height: 1; }
+
+.proclaim__body { display: grid; gap: 1rem; }
+.proclaim__figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .875rem 1rem;
+  background: #f4f6f6;
+  border: 1px solid var(--silver);
+  border-radius: var(--r-card);
+}
+.proclaim__figurelabel {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cool-dim);
+}
+.proclaim__figurevalue {
+  font-family: var(--f-serif);
+  font-size: 2.25rem;
+  line-height: 1;
+  color: var(--green-fn);
+  font-variant-numeric: tabular-nums;
+}
+.proclaim--broken .proclaim__figurevalue { color: #08151b; }
+
+.proclaim__facts { display: grid; gap: .3125rem; }
+.proclaim__fact { display: flex; justify-content: space-between; gap: .75rem; }
+.proclaim__factkey {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--cool-dim);
+}
+.proclaim__factval { font-size: .8125rem; text-align: right; min-width: 0; }
+
+.proclaim__aside {
+  font-size: .75rem;
+  line-height: 1.6;
+  color: var(--cool-dim);
+  border-top: 1px solid var(--silver);
+  padding-top: .875rem;
+}
+.proclaim__actions { display: grid; }
+.proclaim__dismiss {
+  min-height: var(--tap);
+  padding: .75rem 1.25rem;
+  background: var(--green-fn);
+  color: var(--white);
+  border: 1px solid var(--green-fn);
+  border-radius: var(--r-pill);
+  font-family: var(--f-sans);
+  font-size: .9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms, border-color 150ms;
+}
+.proclaim__dismiss:hover { background: #00543b; border-color: #00543b; }
+.proclaim__dismiss:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+@keyframes proclaim-veil { from { opacity: 0; } to { opacity: 1; } }
+@keyframes proclaim-rise {
+  from { opacity: 0; transform: translateY(18px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes proclaim-stamp {
+  0%   { opacity: 0; transform: scale(1.9) rotate(-14deg); }
+  70%  { opacity: .38; transform: scale(.94) rotate(2deg); }
+  100% { opacity: .28; transform: none; }
+}
+
+@media (max-width: 26.5rem) {
+  .proclaim { padding: 1.375rem 1rem 1rem; }
+  .proclaim__head { padding-right: 3.5rem; }
+  .proclaim__title { font-size: 1.4rem; }
+  .proclaim__seal { width: 2.75rem; height: 2.75rem; top: 1rem; right: 1rem; }
+  .proclaim__figurevalue { font-size: 1.875rem; }
+  .proclaim__fact { flex-direction: column; gap: .125rem; }
+  .proclaim__factval { text-align: left; }
+  .recentry__head { flex-direction: column; align-items: flex-start; gap: .5rem; }
+  .recentry__metaitem { flex-direction: column; gap: .0625rem; }
+  .recentry__metaval { text-align: left; }
+  .auditrow__head { align-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proclaim-host,
+  .proclaim,
+  .proclaim__seal { animation-duration: .001ms !important; }
+}
+
+/* ---------- Location registry ----------
+   Shared reference data, edited in place. Archiving hides a location
+   from future selection; the audits that used it are untouched. */
+.locrow {
+  display: grid;
+  gap: .625rem;
+  padding: .875rem 1rem;
+  margin-bottom: .625rem;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+}
+.locrow--archived { border-style: dashed; }
+.locrow__head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; }
+.locrow__name {
+  font-family: var(--f-serif);
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  color: var(--tx-strong);
+  min-width: 0;
+}
+.locrow--archived .locrow__name { color: var(--tx-muted); }
+.locrow__meta {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  letter-spacing: .3px;
+  color: var(--tx-faint);
+  white-space: nowrap;
+  flex: none;
+}
+.locrow__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.locrow__edit { display: grid; gap: .5rem; }
+.locrow__editrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.locrow__error { font-size: .8125rem; color: #b03a2e; }
