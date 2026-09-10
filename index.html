@@ -432,7 +432,7 @@
         <p class="label label--accent">Section V</p>
         <h1 class="intro__title">Records <span class="accent-rule">Office</span></h1>
         <p class="intro__sub">The permanent statistical history of the Bureau.</p>
-        <dl class="stats stats--three" id="records-summary" aria-label="Records Office summary"></dl>
+        <dl class="stats stats--pair" id="records-summary" aria-label="Records Office summary"></dl>
       </div>
     </div>
 
@@ -445,18 +445,18 @@
         </div>
 
         <div class="recordbar">
-          <div class="filters__field">
-            <label class="filters__label" for="records-sort">Order</label>
-            <select class="input input--select" id="records-sort">
-              <option value="recent">Most recently entered</option>
-              <option value="oldest">Longest standing</option>
-              <option value="contested">Most times superseded</option>
-            </select>
-          </div>
-          <button class="linkbtn" type="button" id="records-sound">Ceremonial sound: on</button>
+          <label class="visually-hidden" for="records-sort">Order entries by</label>
+          <select class="input input--select" id="records-sort">
+            <option value="recent">Most recently entered</option>
+            <option value="oldest">Longest standing</option>
+            <option value="contested">Most times superseded</option>
+          </select>
+          <button class="btn btn--outline btn--small recordbar__sound" type="button" id="records-sound"
+                  aria-pressed="true">Sound on</button>
         </div>
 
         <div id="records-list"></div>
+        <button class="btn btn--outline btn--block" type="button" id="records-more" hidden></button>
 
         <div class="empty" id="records-empty" hidden>
           <p class="empty__stamp">No Entries</p>

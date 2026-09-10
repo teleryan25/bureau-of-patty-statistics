@@ -1896,11 +1896,13 @@ main { flex: 1 0 auto; }
 /* ---------- Four-tile stat strip on Rankings ---------- */
 .stats { grid-template-columns: repeat(2, 1fr); }
 .stats--three { grid-template-columns: repeat(3, 1fr); }
-/* The third tile carries a date, which needs less display weight. */
-.stats--three .stat__value { font-size: 1.25rem; }
+/* Two tiles stay two across at every width: three would crush the
+   labels to two lines each on a 375px phone. */
+.stats--pair { grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 26.5625rem) {
   .stats { grid-template-columns: repeat(4, 1fr); }
   .stats--three { grid-template-columns: repeat(3, 1fr); }
+  .stats--pair { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ---------- Rankings filters ---------- */
@@ -2085,8 +2087,6 @@ main { flex: 1 0 auto; }
   font-size: .625rem;
   letter-spacing: .3px;
   color: var(--tx-faint);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .auditrow__cellval { font-variant-numeric: tabular-nums; font-size: .8125rem; color: var(--tx); }
@@ -2104,74 +2104,91 @@ main { flex: 1 0 auto; }
    ============================================================= */
 .recordbar {
   display: grid;
-  gap: .75rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: 1.125rem;
 }
-.recordbar .linkbtn { justify-self: start; }
-@media (min-width: 30rem) {
-  .recordbar { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
-  .recordbar .linkbtn { justify-self: end; padding-bottom: .75rem; }
+.recordbar__sound { white-space: nowrap; }
+.recordbar__sound[aria-pressed="false"] { color: var(--tx-faint); }
+
+/* Available to assistive technology, absent from the layout. */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .recentry {
   position: relative;
   display: grid;
-  gap: .75rem;
-  padding: 1.125rem;
-  margin-bottom: .75rem;
+  gap: .5rem;
+  padding: .875rem 1rem;
+  margin-bottom: .625rem;
   background: var(--surface);
   border: 1px solid var(--bd);
   border-left: 3px solid var(--green-fn);
   border-radius: var(--r-card);
 }
-.recentry__head {
+/* The title is a filing reference, not a headline: it sits quietly above
+   the two things actually being read — what holds the record, and at what. */
+.recentry__title {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  line-height: 1.45;
+}
+.recentry__main {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
-}
-.recentry__titlewrap { min-width: 0; }
-.recentry__title {
-  font-family: var(--f-mono);
-  font-size: .6875rem;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--tx-muted);
-  line-height: 1.5;
+  gap: .75rem;
 }
 .recentry__subject {
   font-family: var(--f-serif);
-  font-size: 1.125rem;
-  line-height: 1.3;
+  font-size: 1.0625rem;
+  line-height: 1.25;
   color: var(--tx-strong);
-  margin-top: .1875rem;
+  min-width: 0;
 }
 .recentry__value {
   flex: none;
   font-family: var(--f-serif);
-  font-size: 1.75rem;
+  font-size: 1.375rem;
   line-height: 1;
   color: var(--green-fn);
   font-variant-numeric: tabular-nums;
 }
 .recentry__meta {
   display: grid;
-  gap: .25rem;
-  padding-top: .75rem;
+  gap: .1875rem;
+  padding-top: .5rem;
   border-top: 1px solid var(--bd-soft);
   list-style: none;
 }
-.recentry__metaitem { display: flex; justify-content: space-between; gap: .75rem; }
+.recentry__metaitem { display: flex; justify-content: space-between; gap: .75rem; align-items: baseline; }
 .recentry__metakey {
+  flex: none;
   font-family: var(--f-mono);
-  font-size: .625rem;
+  font-size: .5625rem;
   font-weight: 600;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--tx-faint);
 }
-.recentry__metaval { font-size: .8125rem; color: var(--tx); text-align: right; min-width: 0; }
+.recentry__metaval {
+  font-size: .78125rem;
+  line-height: 1.4;
+  color: var(--tx);
+  text-align: right;
+  min-width: 0;
+}
 .recentry__flag {
   justify-self: start;
   font-family: var(--f-mono);
@@ -2299,7 +2316,8 @@ main { flex: 1 0 auto; }
 .proclaim--broken .proclaim__figurevalue { color: #08151b; }
 
 .proclaim__facts { display: grid; gap: .3125rem; }
-.proclaim__fact { display: flex; justify-content: space-between; gap: .75rem; }
+.proclaim__fact { display: flex; justify-content: space-between; gap: .75rem; align-items: baseline; }
+.proclaim__factkey { flex: none; }
 .proclaim__factkey {
   font-family: var(--f-mono);
   font-size: .625rem;
@@ -2351,11 +2369,6 @@ main { flex: 1 0 auto; }
   .proclaim__title { font-size: 1.4rem; }
   .proclaim__seal { width: 2.75rem; height: 2.75rem; top: 1rem; right: 1rem; }
   .proclaim__figurevalue { font-size: 1.875rem; }
-  .proclaim__fact { flex-direction: column; gap: .125rem; }
-  .proclaim__factval { text-align: left; }
-  .recentry__head { flex-direction: column; align-items: flex-start; gap: .5rem; }
-  .recentry__metaitem { flex-direction: column; gap: .0625rem; }
-  .recentry__metaval { text-align: left; }
   .auditrow__head { align-items: center; }
 }
 

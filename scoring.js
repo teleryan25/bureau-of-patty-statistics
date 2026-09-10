@@ -57,14 +57,16 @@
   /* ---------- Categories ----------
      Six are entered directly. Service is DERIVED from two sub-scores
      and is never typed in as a single figure. */
+  /* `short` is the label for dense grids on a phone, where the full
+     name would have to be clipped to fit. */
   var CATEGORIES = [
-    { key: 'patty',         label: 'Patty',                 column: 'patty' },
-    { key: 'overallFlavor', label: 'Overall Flavor',        column: 'overall_flavor' },
-    { key: 'bun',           label: 'Bun',                   column: 'bun' },
-    { key: 'fries',         label: 'Fries',                 column: 'fries' },
-    { key: 'value',         label: 'Value',                 column: 'value' },
-    { key: 'condiments',    label: 'Condiments / Toppings', column: 'condiments' },
-    { key: 'service',       label: 'Service',               column: null, derived: true }
+    { key: 'patty',         label: 'Patty',                 short: 'Patty',      column: 'patty' },
+    { key: 'overallFlavor', label: 'Overall Flavor',        short: 'Flavor',     column: 'overall_flavor' },
+    { key: 'bun',           label: 'Bun',                   short: 'Bun',        column: 'bun' },
+    { key: 'fries',         label: 'Fries',                 short: 'Fries',      column: 'fries' },
+    { key: 'value',         label: 'Value',                 short: 'Value',      column: 'value' },
+    { key: 'condiments',    label: 'Condiments / Toppings', short: 'Condiments', column: 'condiments' },
+    { key: 'service',       label: 'Service',               short: 'Service',    column: null, derived: true }
   ];
 
   /* The two halves of Service. Each is scored 0.0–10.0 in tenths. */

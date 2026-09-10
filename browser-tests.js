@@ -508,7 +508,15 @@ async function run() {
     check('the Records Office holds exactly 200 definitions internally',
       office.definitions === 200, office.definitions);
     check('the Records Office shows only records that have been set',
-      office.cards === office.held && office.held > 0 && !office.empty, office);
+      office.cards === Math.min(office.held, 25) && office.held > 0 && !office.empty, office);
+
+    var revealed = await evaluate("(()=>{var more=document.getElementById('records-more');" +
+      "if(more.hidden)return {done:true,cards:document.querySelectorAll('#records-list .recentry').length};" +
+      "var before=document.querySelectorAll('#records-list .recentry').length;more.click();" +
+      "return {done:false,before:before,cards:document.querySelectorAll('#records-list .recentry').length," +
+      "label:more.textContent}})()");
+    check('the Records Office reveals further entries on request',
+      revealed.done || revealed.cards > revealed.before, revealed);
     check('the Records Office leaks no undiscovered record', office.leaked.length === 0, office.leaked);
     check('the Records Office publishes no catalogue size or lock count',
       office.counter === false, office);
@@ -775,6 +783,30 @@ async function run() {
     check('all major views have no overflow at 375/430/768/1280', overflow.length === 0, overflow);
     check('visible inputs remain at least 16px', smallInputs.length === 0, smallInputs);
     check('visible touch buttons remain at least 44px', smallButtons.length === 0, smallButtons);
+
+    /* Page-level overflow is not the only way a phone layout breaks: text
+       clipped inside its own box passes an overflow check and still reads
+       as broken. `.bps-stack` is an intentionally rotated decorative prop
+       in one event presentation, and `.visually-hidden` is deliberately
+       clipped to 1px for assistive technology; both are excluded by name. */
+    await send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 1, mobile: true });
+    var clipped = [];
+    var clipViews = ['rankings', 'pending', 'evaluate', 'record', 'records', 'insights'];
+    for (var ci = 0; ci < clipViews.length; ci++) {
+      await evaluate('BPS.app.setView(' + JSON.stringify(clipViews[ci]) + ')');
+      await delay(80);
+      var found = await evaluate("(()=>{var bad=[];" +
+        "document.querySelectorAll('#view-' + " + JSON.stringify(clipViews[ci]) + " + ' *').forEach(function(e){" +
+        "if(!e.getClientRects().length)return;" +
+        "if(/bps-stack|bps-event|visually-hidden/.test(e.className||''))return;" +
+        "var cs=getComputedStyle(e);" +
+        "if(cs.overflowX==='auto'||cs.overflowX==='scroll'||cs.overflow==='auto')return;" +
+        "if(e.scrollWidth>e.clientWidth+1)bad.push({v:" + JSON.stringify(clipViews[ci]) + "," +
+        "cls:String(e.className||e.tagName),text:(e.textContent||'').trim().slice(0,40)})});" +
+        'return bad.slice(0,6)})()');
+      clipped = clipped.concat(found);
+    }
+    check('no view clips its own text at 375px', clipped.length === 0, clipped);
 
     await signOut(true);
     check('final sign-out returns clean auth view', await evaluate("BPS.app.state.view==='auth' && " +

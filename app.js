@@ -38,6 +38,9 @@
      rest are entered into the Records Office without ceremony. */
   var MAX_CEREMONIES = 5;
 
+  /* Entries revealed per page in the Records Office. */
+  var RECORDS_PAGE = 25;
+
   var DEF_ORDER = {};
   RC.DEFINITIONS.forEach(function (d, i) { DEF_ORDER[d.id] = i; });
 
@@ -62,7 +65,8 @@
     authEpoch: 0,
     justAddedTimer: null,
     justAddedId: null,
-    recordsSort: 'recent'
+    recordsSort: 'recent',
+    recordsShown: 25
   };
   var disasterDirector = null;
   var ceremony = null;
@@ -209,6 +213,7 @@
       recordsSummary: $('records-summary'), recordsList: $('records-list'),
       recordsEmpty: $('records-empty'), recordsMeta: $('records-meta'),
       recordsSort: $('records-sort'), recordsSound: $('records-sound'),
+      recordsMore: $('records-more'),
       ceremonyHost: $('records-ceremony'),
       /* findings */
       insightsSummary: $('insights-summary'), personnel: $('personnel-files'),
@@ -429,20 +434,26 @@
     })[0];
     el.recordsSummary.appendChild(summaryTile('Entries on Record', String(rows.length)));
     el.recordsSummary.appendChild(summaryTile('Superseded', String(superseded)));
-    el.recordsSummary.appendChild(summaryTile('Latest Entry',
-      newest ? formatDate(newest.establishedAt) : '—'));
 
-    el.recordsSound.textContent = 'Ceremonial sound: ' + (RO.soundEnabled() ? 'on' : 'off');
+    var soundOn = RO.soundEnabled();
+    el.recordsSound.textContent = soundOn ? 'Sound on' : 'Sound off';
+    el.recordsSound.setAttribute('aria-pressed', String(soundOn));
+    el.recordsSound.setAttribute('aria-label',
+      'Ceremonial sound is ' + (soundOn ? 'on' : 'off') + '. Activate to turn it ' + (soundOn ? 'off' : 'on') + '.');
 
     if (!rows.length) {
       el.recordsList.replaceChildren();
       el.recordsEmpty.hidden = false;
+      el.recordsMore.hidden = true;
       el.recordsMeta.textContent = 'Entries appear here once they have actually been set.';
       return;
     }
     el.recordsEmpty.hidden = true;
+    /* The latest date belongs in the sentence, not in a tile too narrow
+       to hold it on a phone. */
     el.recordsMeta.textContent = rows.length + ' ' + (rows.length === 1 ? 'entry stands' : 'entries stand') +
-      ' in the permanent history of the Bureau.';
+      ' in the permanent history of the Bureau' +
+      (newest ? ', the most recent entered ' + formatDate(newest.establishedAt) : '') + '.';
 
     if (state.recordsSort === 'oldest') {
       rows.sort(function (a, b) { return Date.parse(a.establishedAt) - Date.parse(b.establishedAt); });
@@ -455,9 +466,17 @@
       rows.sort(function (a, b) { return Date.parse(b.establishedAt) - Date.parse(a.establishedAt); });
     }
 
+    var shown = Math.min(state.recordsShown, rows.length);
     var frag = document.createDocumentFragment();
-    rows.forEach(function (row) { frag.appendChild(buildRecordCard(row)); });
+    rows.slice(0, shown).forEach(function (row) { frag.appendChild(buildRecordCard(row)); });
     el.recordsList.replaceChildren(frag);
+
+    var remaining = rows.length - shown;
+    el.recordsMore.hidden = remaining <= 0;
+    if (remaining > 0) {
+      el.recordsMore.textContent = 'Show ' + Math.min(remaining, RECORDS_PAGE) +
+        ' more of ' + remaining + ' remaining';
+    }
   }
 
   function buildRecordCard(row) {
@@ -465,13 +484,11 @@
     var card = node('article', 'recentry');
     var broke = (row.version || 1) > 1 && row.previous;
 
-    var head = node('div', 'recentry__head');
-    var titleWrap = node('div', 'recentry__titlewrap');
-    titleWrap.appendChild(node('p', 'recentry__title', def ? def.title : 'Bureau Record'));
-    titleWrap.appendChild(node('p', 'recentry__subject', RC.subjectOf(row)));
-    head.appendChild(titleWrap);
-    head.appendChild(node('span', 'recentry__value', RC.formatValue(row)));
-    card.appendChild(head);
+    card.appendChild(node('p', 'recentry__title', def ? def.title : 'Bureau Record'));
+    var main = node('div', 'recentry__main');
+    main.appendChild(node('p', 'recentry__subject', RC.subjectOf(row)));
+    main.appendChild(node('span', 'recentry__value', RC.formatValue(row)));
+    card.appendChild(main);
 
     var meta = node('ul', 'recentry__meta');
     function metaItem(label, value) {
@@ -1427,7 +1444,7 @@
       var cells = node('div', 'auditrow__cells');
       CATEGORIES.forEach(function (c) {
         var cell = node('span', 'auditrow__cell');
-        cell.appendChild(node('span', 'auditrow__cellkey', c.label));
+        cell.appendChild(node('span', 'auditrow__cellkey', c.short || c.label));
         cell.appendChild(node('span', 'auditrow__cellval', S.formatScore(S.categoryValue(audit, c.key))));
         cells.appendChild(cell);
       });
@@ -1911,11 +1928,16 @@
     el.mergeConfirm.addEventListener('click', confirmMerge);
     el.recordsSort.addEventListener('change', function () {
       state.recordsSort = el.recordsSort.value;
+      state.recordsShown = RECORDS_PAGE;
+      renderRecordsOffice();
+    });
+    el.recordsMore.addEventListener('click', function () {
+      state.recordsShown += RECORDS_PAGE;
       renderRecordsOffice();
     });
     el.recordsSound.addEventListener('click', function () {
       var on = RO.setSoundEnabled(!RO.soundEnabled());
-      el.recordsSound.textContent = 'Ceremonial sound: ' + (on ? 'on' : 'off');
+      renderRecordsOffice();
       if (on) RO.playSting();
     });
   }
