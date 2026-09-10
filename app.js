@@ -14,6 +14,8 @@
   var S = window.BPS.scoring;
   var AN = window.BPS.analytics;
   var IN = window.BPS.insights;
+  var DS = window.BPS.disasters;
+  var DT = window.BPS.disasterTheater;
   var DATA = window.BPS.data;
 
   var CATEGORIES = S.CATEGORIES;
@@ -27,6 +29,7 @@
     me: null,              /* 'ryan' | 'devin' */
     burgers: [],
     metrics: null,
+    disasterEvents: [],
     view: 'auth',
     recordId: null,
     evalMode: { type: 'new', burgerId: null },
@@ -35,6 +38,7 @@
     authEpoch: 0,
     justAddedTimer: null
   };
+  var disasterDirector = null;
 
   var el = {};
   function $(id) { return document.getElementById(id); }
@@ -95,6 +99,7 @@
     state.me = null;
     state.burgers = [];
     state.metrics = null;
+    state.disasterEvents = [];
     state.recordId = null;
     state.justAddedId = null;
     if (state.justAddedTimer) {
@@ -151,7 +156,8 @@
       insightsSummary: $('insights-summary'), personnel: $('personnel-files'),
       findingsList: $('findings-list'), findingsMeta: $('findings-meta'), reroll: $('reroll-btn'),
       disputesWrap: $('disputes-wrap'), disputes: $('disputes'),
-      differentialsWrap: $('differentials-wrap'), differentials: $('differentials')
+      differentialsWrap: $('differentials-wrap'), differentials: $('differentials'),
+      disasterStage: $('bureau-event-stage')
     };
   }
 
@@ -242,6 +248,7 @@
       if (!isCurrentSession(token)) return false;
       state.burgers = burgers;
       state.metrics = AN.compute(burgers);
+      state.disasterEvents = DS.evaluate(state.metrics);
       renderAll();
       return true;
     }).catch(function (err) {
@@ -955,6 +962,8 @@
     } else {
       el.differentialsWrap.hidden = true;
     }
+
+    disasterDirector.render(state.disasterEvents, 'insights');
   }
 
   function renderFindings() {
@@ -1004,6 +1013,7 @@
     });
 
     if (name === 'insights') renderInsights();
+    else if (disasterDirector) disasterDirector.clear();
     if (name === 'evaluate' && state.evalMode.type === 'new') renderEvalPending();
 
     var hash = options.hash || name;
@@ -1038,6 +1048,7 @@
      ============================================================= */
   function init() {
     cacheDom();
+    disasterDirector = DT.createDirector({ host: el.disasterStage });
 
     if (!S.weightsAreValid()) {
       console.error('[BPS] SCORING_WEIGHTS total ' + S.weightsTotal() + ', expected ' + S.WEIGHT_TOTAL);
@@ -1075,5 +1086,5 @@
   }
 
   init();
-  window.BPS.app = { state: state, refresh: refresh, setView: setView };
+  window.BPS.app = { state: state, refresh: refresh, setView: setView, disasterDirector: disasterDirector };
 })();

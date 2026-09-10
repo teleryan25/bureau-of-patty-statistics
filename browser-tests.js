@@ -325,6 +325,54 @@ async function run() {
     check('insight revisit rotates displayed findings', insightSecond !== insightFirst.text);
     check('rendered findings contain no invalid numeric text', !/(NaN|undefined|Infinity)/.test(insightSecond));
 
+    var theaterResults = await evaluate("(()=>{var data={n:20,pending:6,audits:40,exactSpecimens:2,maxWeightedGap:6.2," +
+      "rankCorrelation:-.9,exactPct:96,sameNumberOne:true,sameLast:true,oldestPendingDays:95,pendingRyan:6,pendingDevin:0," +
+      "auditImbalance:10,cpiRange:2,cpiSd:.5,repeatCount:6,repeatRange:48,repeatName:'Fixture Establishment'," +
+      "categoryGap:3,categoryKey:'fries',perfects:3,catastrophes:1,exactCells:0,disagreement:1.4,dominanceRun:12," +
+      "dominanceKey:'ryan',stableN:12,stableSd:.03,stableKey:'devin',reversals:8,negativeCats:6,universalWeak:'value'," +
+      "universalWeakMargin:2,topOccupation:5,topOccupationName:'Fixture Establishment',wholeRyan:100,wholeDevin:100," +
+      "cpiCluster:7,cpiClusterValue:82.5,specimen:'Fixture',restaurant:'Fixture Establishment'};" +
+      "return BPS.disasters.IDS.map(id=>{BPS.app.setView('insights');var def=BPS.disasters.DEFINITIONS.find(x=>x.id===id);" +
+      "var event={id:id,phase:1,stages:def.stages,priority:def.priority,fingerprint:id+'-browser',data:data};" +
+      "BPS.app.disasterDirector.show(event,{focus:false});var stage=document.querySelector('.bps-event');" +
+      "var dismiss=stage&&stage.querySelector('.bps-event__dismiss');var before={id:stage&&stage.dataset.eventId," +
+      "visual:stage&&stage.children[1]&&stage.children[1].className,button:dismiss&&dismiss.getBoundingClientRect().height," +
+      "overflow:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-window.innerWidth," +
+      "stageOverflow:stage&&stage.scrollWidth-stage.clientWidth,stageRight:stage&&stage.getBoundingClientRect().right-window.innerWidth," +
+      "submitEnabled:!document.getElementById('submit-btn').disabled,sliders:document.querySelectorAll('#eval-scores input[type=range]').length," +
+      "navAbove:parseInt(getComputedStyle(document.getElementById('masthead')).zIndex,10)>parseInt(getComputedStyle(stage.parentElement).zIndex,10)||" +
+      "getComputedStyle(stage.parentElement).position!=='fixed'};document.getElementById('tab-evaluate').click();" +
+      "before.bypass=BPS.app.state.view==='evaluate'&&document.getElementById('bureau-event-stage').hidden&&!document.getElementById('view-evaluate').hidden;" +
+      "BPS.app.setView('insights');BPS.app.disasterDirector.show(event,{focus:false});document.querySelector('.bps-event__dismiss').click();" +
+      "before.dismissed=document.getElementById('bureau-event-stage').hidden;return before})})()");
+    check('all twenty event presentations render distinct structures', theaterResults.length === 20 &&
+      new Set(theaterResults.map(function (x) { return x.visual; })).size === 20 &&
+      theaterResults.every(function (x, i) { return x.id === 'd' + String(i + 1).padStart(2, '0'); }), theaterResults);
+    check('every event supplies a touch-sized dismissal', theaterResults.every(function (x) { return x.button >= 43.5; }), theaterResults);
+    check('every event dismissal clears its presentation', theaterResults.every(function (x) { return x.dismissed; }), theaterResults);
+    check('every event can be bypassed directly into evaluation', theaterResults.every(function (x) { return x.bypass && x.navAbove; }), theaterResults);
+    check('event presentation never disables evaluation controls', theaterResults.every(function (x) {
+      return x.submitEnabled && x.sliders === 6;
+    }), theaterResults);
+    check('all event presentations fit the 375px mobile viewport', theaterResults.every(function (x) { return x.overflow <= 1; }), theaterResults);
+    check('event stages contain their own mobile content', theaterResults.every(function (x) {
+      return x.stageOverflow <= 1 && x.stageRight <= 1;
+    }), theaterResults);
+
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    var reducedResults = await evaluate("(()=>{var data={n:20,pending:6,audits:40,maxWeightedGap:6.2,rankCorrelation:-.9," +
+      "oldestPendingDays:95,auditImbalance:10,cpiRange:2,repeatRange:48,categoryGap:3,perfects:3,catastrophes:1," +
+      "dominanceRun:12,stableSd:.03,reversals:8,negativeCats:6,universalWeak:'value',topOccupation:5,wholeRyan:100," +
+      "wholeDevin:100,cpiCluster:7,cpiClusterValue:82.5};return BPS.disasters.IDS.map(id=>{var def=BPS.disasters.DEFINITIONS.find(x=>x.id===id);" +
+      "BPS.app.disasterDirector.show({id:id,phase:1,stages:def.stages,priority:def.priority,fingerprint:id+'-motion',data:data},{focus:false});" +
+      "var animated=[...document.querySelectorAll('#bureau-event-stage *')].filter(x=>getComputedStyle(x).animationName!=='none');" +
+      "var durations=animated.flatMap(x=>getComputedStyle(x).animationDuration.split(',').map(v=>v.endsWith('ms')?parseFloat(v):parseFloat(v)*1000));" +
+      "return {id:id,max:durations.length?Math.max(...durations):0}})})()");
+    check('reduced-motion collapses animation duration for all twenty presentations',
+      reducedResults.every(function (x) { return x.max <= 0.02; }), reducedResults);
+    await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
+    await evaluate("BPS.app.disasterDirector.clear()");
+
     await evaluate("BPS.app.setView('pending')");
     await evaluate("document.querySelector('#pending-theirs .ranking__btn').click()");
     current = await evaluate("({view:BPS.app.state.view,labels:[...document.querySelectorAll('#record-figures .figure__label')]" +
