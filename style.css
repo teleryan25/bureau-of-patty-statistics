@@ -1,0 +1,1596 @@
+/* =============================================================
+   Bureau of Patty Statistics
+   Visual system: MongoDB (design-md/mongodb/DESIGN.md)
+   Section references below cite that document.
+
+   MOBILE-FIRST. Base styles target ~360px phone browsers.
+   Enhancements are added upward with min-width only.
+
+   DUAL-MODE (§1, §7 Do): the system's core contrast mechanism is the
+   alternation between dark forest sections and light white sections.
+   Every section is wrapped in .band--dark or .band--light, which set
+   semantic custom properties. Components read only the semantic vars,
+   so each works unchanged in either mode. §7 Don't: never mix the two
+   treatments inside one section.
+
+   Breakpoints follow §8:
+     425px  (26.5625rem)  mobile small -> mobile
+     768px  (48rem)       tablet, 2-col grids begin
+     1024px (64rem)       desktop
+     1280px (80rem)       large desktop
+
+   Contents:
+     1.  Raw palette
+     2.  Mode bands
+     3.  Reset & base
+     4.  Layout primitives
+     5.  Labels & type helpers
+     6.  Masthead + view nav
+     7.  Intro block
+     8.  Stat strip
+     9.  Section headers
+     10. Rankings list
+     11. Empty state
+     12. Buttons & action bar
+     13. Form
+     14. Tally
+     15. Footer
+     16. Breakpoints
+   ============================================================= */
+
+/* ---------- 1. Raw palette (§2) ---------- */
+:root {
+  --forest:      #001e2b;   /* never pure black — §7 Don't */
+  --teal-deep:   #1c2d38;
+  --teal-bd:     #3d4f58;
+  --silver:      #b8c4c2;   /* borders on light surfaces */
+  --cool:        #8a9ba2;   /* muted text on dark (reference dark preview) */
+  --cool-dim:    #5c6c75;   /* §2 Cool Gray — muted text on light */
+  --input-tx:    #e8edeb;
+  --white:       #ffffff;
+  --black:       #000000;
+
+  --green:       #00ed64;   /* accent only, never a background — §7 Don't */
+  --green-fn:    #00684a;   /* functional: button fills, borders, light-mode labels */
+  --blue:        #006cfa;
+  --blue-hover:  #3860be;
+  --teal-active: #1eaedb;
+
+  /* §6 Depth — teal-tinted, never neutral gray (§7 Don't) */
+  --sh-subtle: rgba(0, 0, 0, .1) 0 2px 4px;
+  --sh-card:   rgba(0, 30, 43, .12) 0 3px 9px, rgba(0, 0, 0, .06) 0 1px 3px;
+  --sh-forest: rgba(0, 30, 43, .12) 0 26px 44px, rgba(0, 0, 0, .13) 0 7px 13px;
+
+  /* §3 Three-font system. Value Serif and Euclid Circular A are proprietary;
+     Newsreader and Jost stand in. Source Code Pro is the real thing. */
+  --f-serif: "MongoDB Value Serif", Newsreader, Times, serif;
+  --f-sans:  Jost, "Euclid Circular A", "Akzidenz-Grotesk Std", Arial, system-ui, sans-serif;
+  --f-mono:  "Source Code Pro", ui-monospace, Menlo, monospace;
+
+  /* §5 Border radius scale */
+  --r-input: 4px;
+  --r-card:  16px;
+  --r-lg:    24px;
+  --r-pill:  100px;
+
+  --pad-x: 1.25rem;   /* 20px gutter on small phones */
+  --shell: 72rem;
+  --tap:   2.75rem;   /* 44px minimum touch target */
+}
+
+/* ---------- 2. Mode bands ---------- */
+.band { background: var(--bg); color: var(--tx); }
+
+.band--dark {
+  --bg:          var(--forest);
+  --surface:     var(--teal-deep);
+  --bd:          var(--teal-bd);
+  --bd-soft:     rgba(255, 255, 255, .07);
+  --tx:          var(--white);
+  --tx-strong:   var(--white);
+  --tx-muted:    var(--cool);
+  --tx-faint:    var(--cool-dim);
+  --label:       var(--green);
+  --figure:      var(--green);
+  --card-shadow: var(--sh-subtle);
+  --bar-track:   rgba(255, 255, 255, .07);
+}
+
+.band--light {
+  --bg:          var(--white);
+  --surface:     var(--white);
+  --bd:          var(--silver);
+  --bd-soft:     rgba(0, 30, 43, .08);
+  --tx:          var(--black);
+  --tx-strong:   var(--forest);
+  --tx-muted:    var(--cool-dim);
+  --tx-faint:    #7d8b93;
+  --label:       var(--green-fn);
+  --figure:      var(--green-fn);
+  --card-shadow: var(--sh-card);   /* §6: teal-tinted even on white */
+  --bar-track:   rgba(0, 30, 43, .09);
+}
+
+/* ---------- 3. Reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }   /* stop iOS resizing text on rotate */
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--forest);      /* overscroll at either end lands on forest */
+  color: var(--white);
+  font-family: var(--f-sans);
+  font-size: 1rem;
+  font-weight: 300;               /* §3: weight 300 is the body voice */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;             /* belt-and-braces: no sideways scroll */
+}
+
+h1, h2, h3, p, dl, dd, ol, ul, figure, fieldset, legend { margin: 0; }
+fieldset { padding: 0; border: 0; min-width: 0; }
+ol, ul { padding: 0; list-style: none; }
+img, svg { max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.band--dark :focus-visible { outline-color: var(--green); }
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--green-fn);
+  color: var(--white);
+  padding: .75rem 1rem;
+  border-radius: 0 0 var(--r-input) 0;
+}
+.skip-link:focus { left: 0; }
+
+/* ---------- 4. Layout primitives ---------- */
+.shell {
+  width: 100%;
+  max-width: var(--shell);
+  margin-inline: auto;
+  padding-inline: var(--pad-x);
+}
+
+main { flex: 1 0 auto; }
+.view { display: block; }
+.view[hidden] { display: none; }
+
+/* §5: compact light sections, generous dark ones. */
+.section { padding-block: 1.75rem 2rem; }
+
+/* ---------- 5. Labels & type helpers ---------- */
+/* §3: wide-tracked uppercase mono = "database field label". §7 Do: keep the tracking. */
+.label {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--tx-muted);
+}
+.label--accent { color: var(--label); }
+
+/* §4 signature: neon green accent underline on a display heading fragment. */
+.accent-rule {
+  border-bottom: 3px solid var(--green);
+  padding-bottom: 2px;
+}
+.band--light .accent-rule { border-bottom-color: var(--green-fn); }
+
+/* ---------- 6. Masthead + view nav ---------- */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--teal-bd);
+}
+
+.masthead__bar {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  min-height: 3rem;
+}
+
+.seal { flex: none; width: 1.375rem; height: 1.375rem; color: var(--green); }
+.seal svg { display: block; width: 100%; height: 100%; }
+
+.masthead__id { min-width: 0; display: flex; flex-direction: column; }
+
+.masthead__name {
+  font-size: .875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Redundant with the wordmark on the smallest screens — suppressed there. */
+.masthead__form {
+  display: none;
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+
+.status { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: .4rem; }
+.status__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.status__text {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+
+/* Two segments. §4: pill geometry, teal surface, teal-gray border. */
+.viewnav { padding-bottom: .625rem; }
+.viewnav__track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .125rem;
+  background: var(--teal-deep);
+  border: 1px solid var(--teal-bd);
+  border-radius: var(--r-pill);
+  padding: .25rem;
+}
+.viewnav__btn {
+  position: relative;
+  min-height: var(--tap);
+  padding: .5rem .25rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  color: var(--cool);
+  font-size: .8125rem;      /* four cells must fit a 360px viewport */
+  font-weight: 500;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 150ms, background-color 150ms, border-color 150ms;
+}
+
+/* Count of specimens awaiting the signed-in auditor. */
+.viewnav__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  margin-left: .25rem;
+  padding: 0 .25rem;
+  border-radius: var(--r-pill);
+  background: var(--green);
+  color: #00231a;
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.viewnav__btn[aria-selected="true"] {
+  background: var(--forest);
+  border-color: var(--green-fn);
+  color: var(--green);
+}
+
+/* ---------- 7. Intro block ---------- */
+/* §5: dark sections breathe. Still restrained on phones so the register
+   stays close to the top of the first screen. */
+.intro { padding-block: 1.75rem 2rem; }
+.intro--compact { padding-block: 1.75rem; }
+
+.intro__title {
+  font-family: var(--f-serif);      /* §3 Display Hero — serif for authority */
+  font-weight: 400;
+  font-size: 1.875rem;              /* 30px: readable, not viewport-eating */
+  line-height: 1.15;
+  margin-top: .625rem;
+  text-wrap: balance;
+}
+
+.intro__sub {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--input-tx);
+  margin-top: .75rem;
+}
+
+/* Supporting prose — decorative relative to the rankings, so it waits for width. */
+.intro__note { display: none; }
+
+/* ---------- 8. Stat strip ---------- */
+/* §4 Cards: surface + 1px border, 16px radius. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .5rem;
+  margin-top: 1.5rem;
+}
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  padding: .625rem .5rem;
+  text-align: center;
+  min-width: 0;
+}
+.stat__label {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+  line-height: 1.4;
+}
+.stat__value {
+  font-family: var(--f-serif);       /* display numeral, not body text */
+  font-size: 1.5rem;
+  line-height: 1.1;
+  margin-top: .25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 9. Section headers ---------- */
+.section__head { margin-bottom: 1.125rem; }
+.section__title {
+  font-size: 1.5rem;                 /* §3 Section Heading: sans, weight 500 */
+  font-weight: 500;
+  line-height: 1.25;
+  margin-top: .375rem;
+  color: var(--tx-strong);
+}
+.section__meta {
+  font-size: .875rem;
+  font-weight: 300;
+  color: var(--tx-muted);
+  margin-top: .25rem;
+}
+
+/* ---------- 10. Rankings list ---------- */
+.rankings { display: grid; gap: .625rem; }
+
+.ranking {
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+/* The whole header is the touch target. Four fixed slots, and the text
+   block is nested so it wraps as a unit at narrow widths. */
+.ranking__btn {
+  width: 100%;
+  min-height: var(--tap);
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto 1rem;
+  gap: .75rem;
+  align-items: center;
+  padding: .875rem .875rem .875rem 1rem;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ranking__rank {
+  font-family: var(--f-serif);
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--figure);
+  font-variant-numeric: tabular-nums;
+}
+
+.ranking__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+}
+
+.ranking__text { min-width: 0; display: flex; flex-direction: column; gap: .125rem; }
+
+.ranking__name {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--tx-strong);
+  overflow-wrap: anywhere;
+}
+
+.ranking__origin {
+  font-size: .8125rem;
+  font-weight: 300;
+  line-height: 1.35;
+  color: var(--tx-muted);
+  overflow-wrap: anywhere;
+}
+
+/* CPI is the number people scan for — serif, large, right-aligned. */
+.ranking__score {
+  font-family: var(--f-serif);
+  font-size: 1.625rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-strong);
+  white-space: nowrap;
+}
+.ranking__score small {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: .5rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--tx-faint);
+  margin-top: .25rem;
+}
+
+/* Secondary metadata: present, deliberately quiet. */
+.ranking__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+}
+.ranking__file {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+
+.tag {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: .1875rem .5rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--bd);
+  color: var(--tx-muted);
+  white-space: nowrap;
+}
+.band--dark .tag--certified   { color: var(--green); border-color: var(--green-fn); background: rgba(0,237,100,.08); }
+.band--dark .tag--provisional { color: #66a3ff;      border-color: #0b4a8f;         background: rgba(0,108,250,.1); }
+.band--dark .tag--review      { color: #7fd4ee;      border-color: #1a6a83;         background: rgba(30,174,219,.1); }
+.band--dark .tag--disputed    { color: var(--silver);border-color: var(--teal-bd);  background: rgba(184,196,194,.06); }
+
+.band--light .tag--certified   { color: var(--green-fn); border-color: var(--green-fn); background: rgba(0,237,100,.14); }
+.band--light .tag--provisional { color: var(--blue);     border-color: #9dc2fb;         background: rgba(0,108,250,.08); }
+.band--light .tag--review      { color: #17667e;         border-color: #a5d8e8;         background: rgba(30,174,219,.12); }
+.band--light .tag--disputed    { color: var(--cool-dim); border-color: var(--silver);   background: #f4f6f6; }
+
+.ranking__chev {
+  width: 1rem; height: 1rem;
+  color: var(--tx-muted);
+}
+
+/* ---------- 11. Empty state ---------- */
+.empty {
+  border: 1px dashed var(--bd);
+  border-radius: var(--r-card);
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+.empty__stamp {
+  display: inline-block;
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--label);
+  border: 1px solid currentColor;
+  border-radius: var(--r-input);
+  padding: .25rem .625rem;
+  transform: rotate(-2deg);
+}
+.empty__title {
+  font-family: var(--f-serif);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  margin-top: 1rem;
+  color: var(--tx-strong);
+}
+.empty__text {
+  font-size: .875rem;
+  font-weight: 300;
+  color: var(--tx-muted);
+  margin-top: .5rem;
+}
+
+/* ---------- 12. Buttons & action bar ---------- */
+/* §4 Primary Green + §7 Do: pill radius on primary actions. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap);
+  padding: .75rem 1.75rem;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  font-family: var(--f-sans);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: .9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms, transform 150ms, color 150ms;
+}
+.btn--primary {
+  background: var(--green-fn);
+  border-color: var(--green-fn);
+  color: var(--white);
+  box-shadow: rgba(0,0,0,.06) 0 1px 6px;
+}
+.btn--primary:hover:not(:disabled) { background: var(--teal-active); border-color: var(--teal-active); }
+.btn--primary:active:not(:disabled) { transform: scale(.98); }
+.btn--primary:disabled {
+  background: transparent;
+  border-color: var(--bd);
+  color: var(--tx-faint);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.btn--block { width: 100%; }
+
+/* Sticky so the primary action stays in thumb reach while scrolling a long
+   register. Not a native tab bar — one action, and it scrolls with the page. */
+.actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  padding: .75rem 0 calc(.75rem + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent 0%, var(--bg) 45%);
+}
+
+/* ---------- 13. Form ---------- */
+.form { display: grid; gap: 1.5rem; }
+
+.field { display: grid; gap: .5rem; }
+.field__label {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+  padding: 0;
+}
+
+/* §4 Inputs: 4px radius, silver-teal border. 1rem font-size is required —
+   anything under 16px makes iOS Safari zoom the viewport on focus. */
+.input {
+  width: 100%;
+  min-height: var(--tap);
+  background: var(--surface);
+  color: var(--tx);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-input);
+  padding: .625rem .75rem;
+  font-size: 1rem;
+  font-weight: 300;
+  outline: none;
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.input::placeholder { color: var(--tx-faint); }
+.input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(0,108,250,.2);
+}
+
+.segmented { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.segmented__btn {
+  min-height: var(--tap);
+  padding: .5rem .75rem;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-pill);
+  color: var(--tx-muted);
+  font-size: .9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms, background-color 150ms;
+}
+.segmented__btn.is-selected {
+  color: var(--green-fn);
+  border-color: var(--green-fn);
+  background: rgba(0,237,100,.12);
+}
+
+/* ---- Scoring control ----
+   A range input for coarse travel plus +/- steppers for exact tenths.
+   Rationale: dragging is fast and needs no keyboard (so iOS never zooms),
+   while the steppers guarantee every tenth — including exactly 0.0 and
+   10.0 — is reachable without pixel-accurate dragging on a phone. */
+.score {
+  --pct: 50%;
+  padding: .875rem 0;
+  border-top: 1px solid var(--bd-soft);
+}
+.score:first-child { border-top: 0; }
+
+.score__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .625rem;
+}
+.score__labelwrap { display: flex; align-items: baseline; gap: .5rem; min-width: 0; flex-wrap: wrap; }
+.score__label {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+/* The weight is visible so the examiner knows what actually moves the index. */
+.score__weight {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--tx-faint);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-pill);
+  padding: .0625rem .375rem;
+}
+.score__value {
+  font-family: var(--f-serif);
+  font-size: 1.75rem;
+  line-height: 1;
+  color: var(--green-fn);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.score.is-unset .score__value { color: var(--tx-faint); }
+
+.score__controls {
+  display: grid;
+  grid-template-columns: var(--tap) minmax(0, 1fr) var(--tap);
+  gap: .5rem;
+  align-items: center;
+}
+
+.score__step {
+  width: var(--tap);
+  height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: 50%;
+  color: var(--tx-strong);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms, border-color 120ms, transform 120ms;
+}
+.score__step:hover { border-color: var(--green-fn); }
+.score__step:active { transform: scale(.92); background: rgba(0,237,100,.12); }
+
+/* Track fill is driven by --pct, set on .score from JS. */
+.score__slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--tap);          /* full-height hit area for thumbs */
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;          /* dragging must not scroll the page */
+}
+.score__slider::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(to right, var(--green-fn) var(--pct), var(--bar-track) var(--pct));
+}
+.score__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--green-fn);
+  box-shadow: rgba(0, 30, 43, .2) 0 2px 6px;
+}
+.score__slider::-moz-range-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bar-track);
+}
+.score__slider::-moz-range-progress {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--green-fn);
+}
+.score__slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 3px solid var(--green-fn);
+}
+
+/* Unscored categories read as genuinely empty, not as a zero. */
+.score.is-unset .score__slider::-webkit-slider-runnable-track { background: var(--bar-track); }
+.score.is-unset .score__slider::-webkit-slider-thumb { border-color: var(--bd); }
+.score.is-unset .score__slider::-moz-range-progress { background: transparent; }
+.score.is-unset .score__slider::-moz-range-thumb { border-color: var(--bd); }
+
+/* Only after a failed submit. */
+.score.is-missing .score__label { color: #b3261e; }
+.score.is-missing .score__value { color: #b3261e; }
+
+/* ---- Examiner sections ---- */
+.examiner {
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+  padding: 1rem 1.125rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.examiner.is-incomplete { border-color: #e3b7b3; }
+
+.examiner__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .625rem;
+  border-bottom: 2px solid var(--bd);
+}
+.examiner__name {
+  font-family: var(--f-serif);
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  margin-top: .25rem;
+  color: var(--tx-strong);
+}
+.examiner__scorewrap { text-align: right; flex: none; }
+.examiner__scorelabel {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+.examiner__score {
+  font-family: var(--f-serif);
+  font-size: 2rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-strong);
+}
+.examiner__progress {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  margin-top: .625rem;
+}
+.score-list { margin-top: .25rem; }
+
+/* ---- Inline field validation ---- */
+.field__error {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #b3261e;
+}
+.input.is-invalid { border-color: #b3261e; }
+
+/* ---------- 14. Tally ---------- */
+.tally {
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+  padding: 1rem;
+}
+.tally__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.tally__label {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.tally__value {
+  font-family: var(--f-serif);
+  font-size: 2rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-strong);
+}
+.tally__hint {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  margin-top: .5rem;
+}
+
+.form__note {
+  font-size: .8125rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--tx-faint);
+  text-align: center;
+}
+
+/* ---------- 15. Footer ---------- */
+.footer {
+  flex: none;
+  border-top: 1px solid var(--teal-bd);
+  padding-block: 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+.footer__line { font-size: .8125rem; font-weight: 300; color: var(--tx-muted); }
+.footer__line--mono {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  margin-top: .5rem;
+}
+
+/* ---------- 15b. Evaluation Record ---------- */
+.record__head { padding-block: 1rem 2rem; }
+
+.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  min-height: var(--tap);
+  padding: 0 .75rem 0 .5rem;
+  margin-left: -.5rem;
+  background: none;
+  border: 0;
+  color: var(--green);
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.backlink svg { width: 1rem; height: 1rem; }
+
+.record__burger {
+  font-family: var(--f-serif);
+  font-weight: 400;
+  font-size: 1.875rem;
+  line-height: 1.15;
+  margin-top: .5rem;
+  text-wrap: balance;
+}
+.record__restaurant {
+  font-size: 1rem;
+  font-weight: 300;
+  color: var(--tx-muted);
+  margin-top: .375rem;
+}
+
+.record__figures {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .5rem;
+  margin-top: 1.5rem;
+}
+.figure {
+  background: var(--surface);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  padding: .75rem 1rem;
+  min-width: 0;
+}
+.figure__label {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.figure__value {
+  font-family: var(--f-serif);
+  font-size: 2rem;
+  line-height: 1.1;
+  margin-top: .25rem;
+  font-variant-numeric: tabular-nums;
+}
+.figure--wide .figure__value { color: var(--green); }
+
+.section__head--spaced { margin-top: 2.5rem; }
+
+/* Per-examiner record card */
+.exrec {
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+  padding: 1rem 1.125rem 1.125rem;
+  margin-bottom: 1rem;
+}
+.exrec__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: .75rem;
+  border-bottom: 2px solid var(--bd);
+  margin-bottom: .25rem;
+}
+.exrec__name {
+  font-family: var(--f-serif);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--tx-strong);
+}
+.exrec__weighted { text-align: right; flex: none; }
+.exrec__weightedlabel {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+.exrec__weightedvalue {
+  font-family: var(--f-serif);
+  font-size: 1.625rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--green-fn);
+}
+
+/* Category rows, shared by examiner scores and combined findings. */
+.catlist { display: grid; gap: .5rem; }
+.catlist__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.5rem;
+  gap: .25rem .75rem;
+  align-items: center;
+  padding-top: .5rem;
+}
+.catlist__label {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.catlist__weight {
+  font-size: .5rem;
+  letter-spacing: 1px;
+  color: var(--tx-faint);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-pill);
+  padding: 0 .3125rem;
+}
+.catlist__bar {
+  grid-column: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--bar-track);
+  overflow: hidden;
+}
+.catlist__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--green-fn);
+}
+.catlist__val {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-family: var(--f-serif);
+  font-size: 1.25rem;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-strong);
+}
+.catlist--findings .catlist__fill { background: var(--teal-active); }
+
+/* Secondary action */
+.btn--outline {
+  background: transparent;
+  border-color: var(--bd);
+  color: var(--tx-strong);
+}
+.btn--outline:hover { border-color: var(--green-fn); color: var(--green-fn); }
+
+/* The record already has a back link in its header, so a sticky duplicate
+   would cover content for no gain. It sits at the end of the page instead. */
+#view-record .actionbar {
+  position: static;
+  background: none;
+  padding: 1.5rem 0 2.5rem;
+}
+
+/* Newly filed specimen, briefly */
+.ranking.is-new {
+  border-color: var(--green-fn);
+  box-shadow: 0 0 0 3px rgba(0, 237, 100, .18), var(--card-shadow);
+}
+
+/* =============================================================
+   16. Breakpoints — additive only (§8)
+   ============================================================= */
+
+/* --- 425px: mobile small -> mobile --- */
+@media (min-width: 26.5625rem) {
+  :root { --pad-x: 1.5rem; }
+
+  .masthead__form { display: block; }
+  .intro__title   { font-size: 2.125rem; }
+  .stat__value    { font-size: 1.75rem; }
+  .ranking__score { font-size: 2rem; }
+}
+
+/* --- 768px: tablet. Two columns begin (§8). --- */
+@media (min-width: 48rem) {
+  :root { --pad-x: 2rem; }
+
+  /* A two-item control has no business spanning a wide viewport. */
+  .viewnav__track { max-width: 32rem; }
+  .viewnav__btn { font-size: .875rem; padding: .5rem .75rem; }
+
+  /* §5: generous dark sections. */
+  .intro { padding-block: 4rem 3rem; }
+  .intro--compact { padding-block: 3rem; }
+  .intro__title { font-size: 3.25rem; line-height: 1.1; }
+  .intro__sub   { font-size: 1.25rem; margin-top: 1rem; }
+
+  /* Supporting prose earns its place once there's room for it. */
+  .intro__note {
+    display: block;
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--tx-muted);
+    margin-top: 1rem;
+    max-width: 34rem;
+  }
+
+  .stats { gap: .75rem; margin-top: 2rem; }
+  .stat  { padding: 1rem; }
+  .stat__label { font-size: .625rem; letter-spacing: 2px; }
+  .stat__value { font-size: 2.125rem; }
+
+  .section { padding-block: 3rem; }
+  .section__title { font-size: 2.25rem; line-height: 1.33; }
+
+  /* Rank + identity + metadata on one line; score anchored right. */
+  .ranking__btn {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto 1rem;
+    gap: 1.25rem;
+    padding: 1.125rem 1.25rem 1.125rem 1.5rem;
+  }
+  .ranking__rank   { font-size: 1.625rem; }
+  .ranking__name   { font-size: 1.1875rem; }
+  .ranking__origin { font-size: .875rem; }
+  .ranking__score  { font-size: 2.25rem; }
+
+  /* Identity left, metadata right, on one line. */
+  .ranking__body {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+  }
+  .ranking__meta { flex: none; }
+
+  /* Enough room to sit inline — no need to pin it to the thumb zone. */
+  .actionbar {
+    position: static;
+    background: none;
+    padding: 0 0 3rem;
+  }
+  .btn--block { width: auto; min-width: 16rem; }
+
+  /* Two columns of categories, and the form stops stretching to full width. */
+  .form { max-width: 46rem; }
+  .score-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 2rem; }
+  .score-list .score:nth-child(2) { border-top: 0; }
+  .form__note { text-align: left; }
+
+  .examiner { padding: 1.25rem 1.5rem 1.5rem; }
+  .record__head { padding-block: 1.25rem 3rem; }
+  .record__burger { font-size: 3rem; }
+  .record__figures { grid-template-columns: auto auto; justify-content: start; gap: .75rem; }
+  .figure { padding: 1rem 1.75rem; }
+  .figure__value { font-size: 2.5rem; }
+  #record-examiners { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  .exrec { margin-bottom: 0; }
+  .catlist--findings { grid-template-columns: repeat(2, 1fr); gap: .5rem 2rem; }
+}
+
+/* --- 1024px: desktop. Use the width without letting text sprawl. --- */
+@media (min-width: 64rem) {
+  .intro { padding-block: 5rem 3.5rem; }
+  .intro__title { font-size: 4rem; }
+
+  .rankings { gap: .75rem; }
+  .ranking__btn { grid-template-columns: 3rem minmax(0, 1fr) auto 1rem; }
+
+  .form { max-width: 52rem; }
+  .record__burger { font-size: 3.5rem; }
+  .catlist--findings { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* --- 1280px: large desktop (§8) --- */
+@media (min-width: 80rem) {
+  .intro__title { font-size: 4.5rem; }
+  .section__title { font-size: 2.5rem; }
+}
+
+/* ---------- Motion preferences ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =============================================================
+   17. PHASE 3 — auth, pending, findings, oversight
+   ============================================================= */
+
+/* ---------- Credential check ---------- */
+.auth { padding-block: 3rem 3.5rem; text-align: left; }
+.seal--lg { width: 2.5rem; height: 2.5rem; display: block; margin-bottom: 1.25rem; }
+.auth__title {
+  font-family: var(--f-serif);
+  font-weight: 400;
+  font-size: 2.125rem;
+  line-height: 1.15;
+  margin-top: .625rem;
+}
+.auth__sub { font-size: 1.0625rem; color: var(--input-tx); margin-top: .75rem; }
+.auth__note { font-size: .9375rem; color: var(--tx-muted); margin-top: 1rem; max-width: 30rem; }
+.form--auth { gap: 1.25rem; }
+
+/* ---------- Auditor identity chip ---------- */
+.authchip {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  border: 1px solid var(--teal-bd);
+  border-radius: var(--r-pill);
+  padding: .25rem .625rem;
+  background: var(--teal-deep);
+}
+.authchip__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.authchip__label {
+  display: none;
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cool-dim);
+}
+.authchip__name {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+/* ---------- Row action bar (peer review shortcut) ---------- */
+.ranking__action {
+  border-top: 1px solid var(--bd-soft);
+  padding: .625rem .875rem .875rem;
+}
+.btn--small {
+  min-height: var(--tap);
+  padding: .5rem 1.125rem;
+  font-size: .875rem;
+  letter-spacing: .4px;
+  width: 100%;
+}
+
+/* ---------- Duplicate-specimen guard ---------- */
+.dupwarn {
+  border: 1px solid #d9a441;
+  background: rgba(217, 164, 65, .08);
+  border-radius: var(--r-card);
+  padding: .875rem 1rem 1rem;
+  display: grid;
+  gap: .5rem;
+}
+.dupwarn__title {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #8a6414;
+}
+.dupwarn__text { font-size: .875rem; line-height: 1.5; color: var(--tx-strong); }
+
+/* ---------- Fixed specimen header while reviewing ---------- */
+.reviewhead {
+  border: 1px solid var(--bd);
+  border-left: 3px solid var(--green-fn);
+  border-radius: var(--r-card);
+  padding: 1rem 1.125rem;
+  background: var(--surface);
+}
+.reviewhead__burger {
+  font-family: var(--f-serif);
+  font-size: 1.5rem;
+  line-height: 1.15;
+  margin-top: .375rem;
+  color: var(--tx-strong);
+}
+.reviewhead__restaurant { font-size: .9375rem; color: var(--tx-muted); margin-top: .125rem; }
+.reviewhead__note { font-size: .8125rem; line-height: 1.5; color: var(--tx-muted); margin-top: .625rem; }
+
+.eval__divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 1.75rem 0 .5rem;
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+.eval__divider::before, .eval__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--bd);
+}
+
+/* ---------- Record extras ---------- */
+.record__meta {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  margin-top: .75rem;
+}
+.record__await {
+  font-size: .875rem;
+  line-height: 1.5;
+  color: var(--tx-muted);
+  margin-top: 1.25rem;
+  max-width: 34rem;
+}
+#record-cta { margin-top: 1.5rem; }
+.exrec--missing { border-style: dashed; }
+.exrec__missing {
+  font-size: .875rem;
+  line-height: 1.55;
+  color: var(--tx-muted);
+  margin: .75rem 0 1rem;
+}
+.exrec__filed {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  margin-top: .875rem;
+}
+.exrec .btn--small { margin-top: .875rem; }
+
+/* ---------- Oversight: four-tile summary ---------- */
+.stats--four { grid-template-columns: repeat(2, 1fr); }
+
+/* ---------- Personnel key/value ---------- */
+.kv { display: grid; gap: 0; margin-top: .25rem; }
+.kv__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .5rem 0;
+  border-top: 1px solid var(--bd-soft);
+}
+.kv__key {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.kv__val {
+  font-size: .9375rem;
+  font-weight: 400;
+  color: var(--tx-strong);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Findings ----------
+   The rotating written notices are the centrepiece of the page. */
+#findings-list { display: grid; gap: .75rem; margin-bottom: 1.25rem; }
+.finding {
+  border: 1px solid var(--bd);
+  border-left: 3px solid var(--green-fn);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  padding: 1rem 1.125rem 1.125rem;
+  position: relative;
+}
+.finding__title {
+  font-family: var(--f-mono);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--green-fn);
+  padding-right: 5rem;
+}
+.finding__body {
+  font-size: .9375rem;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--tx-strong);
+  margin-top: .5rem;
+  text-wrap: pretty;
+}
+.finding__flag {
+  position: absolute;
+  top: .875rem;
+  right: 1rem;
+  font-family: var(--f-mono);
+  font-size: .5rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+  border: 1px solid var(--bd);
+  border-radius: var(--r-pill);
+  padding: .125rem .5rem;
+}
+.finding--rare { border-left-color: var(--teal-active); }
+.finding--rare .finding__title { color: #17667e; }
+.finding--legendary { border-left-color: #b8860b; }
+.finding--legendary .finding__title { color: #8a6414; }
+.finding--legendary .finding__flag { border-color: #d9a441; color: #8a6414; }
+
+/* ---------- Ranking disputes ---------- */
+.disputes { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.disputes__col {
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  padding: .875rem 1rem 1rem;
+  background: var(--surface);
+  min-width: 0;
+}
+.disputes__title {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--label);
+  margin-bottom: .5rem;
+}
+.disputes__list { display: grid; gap: .375rem; }
+.disputes__item {
+  display: flex;
+  align-items: baseline;
+  gap: .625rem;
+  min-width: 0;
+}
+.disputes__rank {
+  font-family: var(--f-serif);
+  font-size: 1rem;
+  color: var(--figure);
+  flex: none;
+  width: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.disputes__name {
+  font-size: .875rem;
+  color: var(--tx-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Category differentials ---------- */
+.diffs { display: grid; gap: 1rem; }
+.diff {
+  border: 1px solid var(--bd);
+  border-radius: var(--r-card);
+  padding: .875rem 1rem 1rem;
+  background: var(--surface);
+}
+.diff__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .625rem;
+}
+.diff__label {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.diff__delta {
+  font-family: var(--f-mono);
+  font-size: .625rem;
+  font-weight: 600;
+  color: var(--tx-strong);
+  font-variant-numeric: tabular-nums;
+}
+.diff__bars { display: grid; gap: .375rem; }
+.diff__line { display: grid; grid-template-columns: 3rem 1fr 2.25rem; gap: .625rem; align-items: center; }
+.diff__who {
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--tx-muted);
+}
+.diff__track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bar-track);
+  overflow: hidden;
+}
+.diff__fill { display: block; height: 100%; border-radius: var(--r-pill); }
+.diff__fill--ryan { background: var(--green-fn); }
+.diff__fill--devin { background: var(--teal-active); }
+.diff__num {
+  font-family: var(--f-mono);
+  font-size: .75rem;
+  font-weight: 600;
+  text-align: right;
+  color: var(--tx-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Footer session + toast ---------- */
+.footer__session {
+  margin-top: 1rem;
+  padding-top: .875rem;
+  border-top: 1px solid var(--teal-bd);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--tx-faint);
+}
+.linkbtn {
+  background: none;
+  border: 0;
+  padding: .5rem 0;
+  min-height: var(--tap);
+  color: var(--green);
+  font-family: var(--f-mono);
+  font-size: .5625rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: calc(100vw - 2rem);
+  background: var(--forest);
+  color: var(--white);
+  border: 1px solid var(--green-fn);
+  border-radius: var(--r-pill);
+  padding: .75rem 1.25rem;
+  font-size: .875rem;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: rgba(0, 30, 43, .4) 0 8px 24px;
+}
+
+/* ---------- Breakpoints for the new blocks ---------- */
+@media (min-width: 26.5625rem) {
+  .authchip__label { display: inline; }
+}
+
+@media (min-width: 48rem) {
+  .auth { padding-block: 4.5rem 4rem; }
+  .auth__title { font-size: 3rem; }
+  .form--auth { max-width: 26rem; }
+  .stats--four { grid-template-columns: repeat(4, 1fr); }
+  .disputes { grid-template-columns: repeat(3, 1fr); }
+  .diffs { grid-template-columns: repeat(2, 1fr); }
+  #findings-list { grid-template-columns: repeat(2, 1fr); }
+  #personnel-files { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+  #personnel-files .exrec { margin-bottom: 0; }
+  .btn--small { width: auto; }
+  .ranking__action { display: flex; justify-content: flex-end; }
+}
+
+@media (min-width: 64rem) {
+  #findings-list { grid-template-columns: repeat(3, 1fr); }
+  .diffs { grid-template-columns: repeat(3, 1fr); }
+}

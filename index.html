@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="The Bureau of Patty Statistics — advancing the science of eating hamburgers." />
+  <meta name="theme-color" content="#001e2b" />
+  <title>Bureau of Patty Statistics</title>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23001e2b'/%3E%3Cg fill='none' stroke='%2300ed64' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M8 13c0-3 3.6-5.5 8-5.5s8 2.5 8 5.5'/%3E%3Cpath d='M7.5 17.5h17M7.5 22h17'/%3E%3C/g%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600;700&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500&amp;family=Source+Code+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============================================================
+     Masthead — DARK band (§4: dark header on forest-black)
+     ============================================================ -->
+<header class="masthead band band--dark" id="masthead" hidden>
+  <div class="shell masthead__bar">
+    <span class="seal" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M5.5 10c0-2.5 2.9-4.5 6.5-4.5s6.5 2 6.5 4.5" />
+        <path d="M5 13h14M5 16.5h14" />
+        <path d="M7 20h10" />
+      </svg>
+    </span>
+    <span class="masthead__id">
+      <span class="masthead__name">Bureau of Patty Statistics</span>
+      <span class="masthead__form">BPS&#8209;1 / Public Register</span>
+    </span>
+    <span class="authchip" id="authchip">
+      <span class="authchip__dot" aria-hidden="true"></span>
+      <span class="authchip__label">Auditor:</span>
+      <span class="authchip__name" id="authchip-name">—</span>
+    </span>
+  </div>
+
+  <!-- Four workflows. Equal file-tab cells, no hamburger, no native tab bar. -->
+  <nav class="shell viewnav" aria-label="Primary">
+    <div class="viewnav__track" role="tablist">
+      <button class="viewnav__btn" id="tab-rankings" type="button" role="tab" aria-selected="true"
+              aria-controls="view-rankings" data-view="rankings">Rankings</button>
+      <button class="viewnav__btn" id="tab-pending" type="button" role="tab" aria-selected="false"
+              aria-controls="view-pending" data-view="pending">Pending<span class="viewnav__badge" id="pending-badge" hidden>0</span></button>
+      <button class="viewnav__btn" id="tab-evaluate" type="button" role="tab" aria-selected="false"
+              aria-controls="view-evaluate" data-view="evaluate">Evaluate</button>
+      <button class="viewnav__btn" id="tab-insights" type="button" role="tab" aria-selected="false"
+              aria-controls="view-insights" data-view="insights">Insights</button>
+    </div>
+  </nav>
+</header>
+
+<main id="main">
+
+  <!-- ============================================================
+       VIEW 0 — Credential check
+       ============================================================ -->
+  <section class="view" id="view-auth" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell auth">
+        <span class="seal seal--lg" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M5.5 10c0-2.5 2.9-4.5 6.5-4.5s6.5 2 6.5 4.5" />
+            <path d="M5 13h14M5 16.5h14" />
+            <path d="M7 20h10" />
+          </svg>
+        </span>
+        <p class="label label--accent">Office of Culinary Metrics</p>
+        <h1 class="auth__title">Bureau of <span class="accent-rule">Patty Statistics</span></h1>
+        <p class="auth__sub">Advancing the science of eating hamburgers.</p>
+        <p class="auth__note">Access is restricted to credentialed Bureau auditors. There is no public registration.</p>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+        <form class="form form--auth" id="auth-login-form">
+          <div class="section__head">
+            <p class="label label--accent">Form BPS&#8209;0</p>
+            <h2 class="section__title">Examiner Credential Check</h2>
+            <p class="section__meta">Sign in with your registered Bureau email and password.</p>
+          </div>
+          <div class="field">
+            <label class="field__label" for="auth-email">Registered email</label>
+            <input class="input" id="auth-email" name="email" type="email" inputmode="email"
+                   autocomplete="username" enterkeyhint="next" placeholder="auditor@example.com" required />
+          </div>
+          <div class="field">
+            <label class="field__label" for="auth-password">Password</label>
+            <input class="input" id="auth-password" name="password" type="password"
+                   autocomplete="current-password" enterkeyhint="go" required />
+            <p class="field__error" id="auth-error" aria-live="polite" hidden></p>
+          </div>
+          <button class="btn btn--primary btn--block" type="submit" id="auth-login-btn">Sign In</button>
+        </form>
+
+        <p class="form__note" id="auth-mode-note"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 1 — Official Burger Rankings
+       ============================================================ -->
+  <section class="view" id="view-rankings" role="tabpanel" aria-labelledby="tab-rankings" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell intro">
+        <p class="label label--accent">Office of Culinary Metrics</p>
+        <h1 class="intro__title">Bureau of <span class="accent-rule">Patty Statistics</span></h1>
+        <p class="intro__sub">Advancing the science of eating hamburgers.</p>
+        <p class="intro__note">Established to collect, verify, and publish standardized burger performance data in the public interest. All findings are provisional pending peer review.</p>
+
+        <dl class="stats" aria-label="Register statistics">
+          <div class="stat"><dt class="stat__label">Specimens on File</dt><dd class="stat__value" data-stat="specimens">0</dd></div>
+          <div class="stat"><dt class="stat__label">Mean Index</dt><dd class="stat__value" data-stat="mean">&mdash;</dd></div>
+          <div class="stat"><dt class="stat__label">Pending</dt><dd class="stat__value" data-stat="pending">0</dd></div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+        <div class="section__head">
+          <p class="label label--accent">Section II</p>
+          <h2 class="section__title">Official Burger Rankings</h2>
+          <p class="section__meta">Certified specimens only, sorted by Composite Patty Index</p>
+        </div>
+        <ol class="rankings" id="rankings-list" hidden></ol>
+        <div class="empty" id="rankings-empty" hidden>
+          <p class="empty__stamp">No Data</p>
+          <h3 class="empty__title">No certified specimens.</h3>
+          <p class="empty__text">A specimen enters the Official Rankings once both auditors have filed. Until then it awaits peer review.</p>
+        </div>
+      </div>
+      <div class="actionbar">
+        <div class="shell">
+          <button class="btn btn--primary btn--block" type="button" data-goto="evaluate">Evaluate a Burger</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 2 — Pending peer review
+       ============================================================ -->
+  <section class="view" id="view-pending" role="tabpanel" aria-labelledby="tab-pending" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell intro intro--compact">
+        <p class="label label--accent">Section III</p>
+        <h1 class="intro__title">Pending <span class="accent-rule">Peer Review</span></h1>
+        <p class="intro__sub">Specimens filed by one auditor and awaiting the other.</p>
+      </div>
+    </div>
+    <div class="band band--light">
+      <div class="shell section">
+        <div id="pending-mine-wrap" hidden>
+          <div class="section__head">
+            <p class="label label--accent">Action Required</p>
+            <h2 class="section__title">Awaiting Your Review</h2>
+            <p class="section__meta" id="pending-mine-meta"></p>
+          </div>
+          <ul class="rankings" id="pending-mine"></ul>
+        </div>
+
+        <div id="pending-theirs-wrap" hidden>
+          <div class="section__head section__head--spaced">
+            <p class="label label--accent">No Action Required</p>
+            <h2 class="section__title" id="pending-theirs-title">Awaiting Peer</h2>
+            <p class="section__meta" id="pending-theirs-meta"></p>
+          </div>
+          <ul class="rankings" id="pending-theirs"></ul>
+        </div>
+
+        <div class="empty" id="pending-empty" hidden>
+          <p class="empty__stamp">All Clear</p>
+          <h3 class="empty__title">No specimens pending.</h3>
+          <p class="empty__text">Every filing in the register has completed peer review. The Office of Auditor Accountability is, briefly, without grievance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 3 — Evaluation (file own audit)
+       ============================================================ -->
+  <section class="view" id="view-evaluate" role="tabpanel" aria-labelledby="tab-evaluate" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell intro intro--compact">
+        <p class="label label--accent" id="eval-form-label">Form BPS&#8209;2</p>
+        <h1 class="intro__title" id="eval-title">File an <span class="accent-rule">Examination</span></h1>
+        <p class="intro__sub" id="eval-sub">You file only your own six scores. Your peer files theirs independently.</p>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+
+        <!-- Prominent shortcut into peer review, so nobody re-creates an existing specimen -->
+        <div id="eval-pending-wrap" hidden>
+          <div class="section__head">
+            <p class="label label--accent">Complete Pending Review</p>
+            <h2 class="section__title">Already on File</h2>
+            <p class="section__meta">These specimens exist and need only your scores.</p>
+          </div>
+          <ul class="rankings" id="eval-pending-list"></ul>
+          <p class="eval__divider"><span>or file a new specimen</span></p>
+        </div>
+
+        <form class="form" id="evaluate-form" novalidate>
+          <!-- Identity block: editable for a new specimen, fixed when reviewing -->
+          <div id="eval-identity-new">
+            <div class="field">
+              <label class="field__label" for="f-restaurant">Establishment</label>
+              <input class="input" id="f-restaurant" name="restaurant" type="text"
+                     autocomplete="off" enterkeyhint="next" placeholder="e.g. Matt&rsquo;s Bar" />
+              <p class="field__error" id="err-restaurant" hidden>Establishment name is required.</p>
+            </div>
+            <div class="field">
+              <label class="field__label" for="f-burger">Specimen name</label>
+              <input class="input" id="f-burger" name="burger" type="text"
+                     autocomplete="off" enterkeyhint="done" placeholder="e.g. Jucy Lucy" />
+              <p class="field__error" id="err-burger" hidden>Specimen name is required.</p>
+            </div>
+            <div class="dupwarn" id="dup-warning" hidden>
+              <p class="dupwarn__title">Possible duplicate filing</p>
+              <p class="dupwarn__text" id="dup-text"></p>
+              <button class="btn btn--outline btn--small" type="button" id="dup-open">Open existing specimen</button>
+            </div>
+          </div>
+
+          <div id="eval-identity-review" hidden>
+            <div class="reviewhead">
+              <p class="label label--accent" id="review-specimen">Specimen</p>
+              <p class="reviewhead__burger" id="review-burger">&mdash;</p>
+              <p class="reviewhead__restaurant" id="review-restaurant">&mdash;</p>
+              <p class="reviewhead__note" id="review-note"></p>
+            </div>
+            <button class="btn btn--outline btn--small" type="button" id="review-cancel">File a different specimen instead</button>
+          </div>
+
+          <!-- Score controls injected from CATEGORIES -->
+          <div class="examiner" id="eval-examiner">
+            <div class="examiner__head">
+              <div class="examiner__id">
+                <p class="label label--accent">Examiner</p>
+                <h3 class="examiner__name" id="eval-auditor-name">&mdash;</h3>
+              </div>
+              <div class="examiner__scorewrap">
+                <p class="examiner__scorelabel">Weighted</p>
+                <p class="examiner__score" id="eval-weighted">&mdash;</p>
+              </div>
+            </div>
+            <p class="examiner__progress" id="eval-progress">0 of 6 categories scored</p>
+            <div class="score-list" id="eval-scores"></div>
+          </div>
+
+          <div class="tally" aria-live="polite">
+            <div class="tally__row">
+              <span class="tally__label" id="tally-label">Your Weighted Score</span>
+              <span class="tally__value" id="tally-value">&mdash;</span>
+            </div>
+            <p class="tally__hint" id="tally-hint">Awaiting scores</p>
+          </div>
+
+          <button class="btn btn--primary btn--block" type="submit" id="submit-btn">File Examination</button>
+          <p class="form__note">Submissions are subject to review. Falsified condiment data is a serious matter.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 4 — Evaluation Record
+       ============================================================ -->
+  <section class="view" id="view-record" role="region" aria-label="Evaluation Record" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell record__head">
+        <button class="backlink" type="button" data-goto="rankings">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 3L5 8l5 5" /></svg>
+          Official Rankings
+        </button>
+        <p class="label label--accent" id="record-file">Specimen File</p>
+        <h1 class="record__burger" id="record-burger">&mdash;</h1>
+        <p class="record__restaurant" id="record-restaurant">&mdash;</p>
+        <p class="record__meta" id="record-meta"></p>
+        <div class="record__figures" id="record-figures"></div>
+        <div id="record-cta"></div>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+        <div class="section__head">
+          <p class="label label--accent">Section A</p>
+          <h2 class="section__title">Individual Examiner Scores</h2>
+          <p class="section__meta">Weighted personal score shown per examiner.</p>
+        </div>
+        <div id="record-examiners"></div>
+
+        <div id="record-findings-wrap">
+          <div class="section__head section__head--spaced">
+            <p class="label label--accent">Section B</p>
+            <h2 class="section__title">Category Findings</h2>
+            <p class="section__meta">Combined mean of both examiners. Descriptive only &mdash; the Index is weighted.</p>
+          </div>
+          <div id="record-findings"></div>
+        </div>
+      </div>
+      <div class="actionbar">
+        <div class="shell">
+          <button class="btn btn--outline btn--block" type="button" data-goto="rankings">Return to Rankings</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       VIEW 5 — Office of Auditor Accountability
+       ============================================================ -->
+  <section class="view" id="view-insights" role="tabpanel" aria-labelledby="tab-insights" tabindex="-1" hidden>
+    <div class="band band--dark">
+      <div class="shell intro intro--compact">
+        <p class="label label--accent">Section IV</p>
+        <h1 class="intro__title">Office of Auditor <span class="accent-rule">Accountability</span></h1>
+        <p class="intro__sub">Statistical oversight of the examining staff.</p>
+        <dl class="stats stats--four" id="insights-summary" aria-label="Oversight summary"></dl>
+      </div>
+    </div>
+
+    <div class="band band--light">
+      <div class="shell section">
+        <div class="section__head">
+          <p class="label label--accent">Section IV-A</p>
+          <h2 class="section__title">Personnel Files</h2>
+          <p class="section__meta">Derived from every audit filed, including specimens awaiting review.</p>
+        </div>
+        <div id="personnel-files"></div>
+
+        <div class="section__head section__head--spaced">
+          <p class="label label--accent">Section IV-B</p>
+          <h2 class="section__title">Current Findings</h2>
+          <p class="section__meta" id="findings-meta">Issued by the Office of Auditor Accountability.</p>
+        </div>
+        <div id="findings-list"></div>
+        <button class="btn btn--outline btn--block" type="button" id="reroll-btn">Issue Further Findings</button>
+
+        <div id="disputes-wrap" hidden>
+          <div class="section__head section__head--spaced">
+            <p class="label label--accent">Section IV-C</p>
+            <h2 class="section__title">Ranking Disputes</h2>
+            <p class="section__meta">Personal orderings against the official register.</p>
+          </div>
+          <div id="disputes"></div>
+        </div>
+
+        <div id="differentials-wrap" hidden>
+          <div class="section__head section__head--spaced">
+            <p class="label label--accent">Section IV-D</p>
+            <h2 class="section__title">Category Differentials</h2>
+            <p class="section__meta">Mean score by category, per auditor. Paired specimens only.</p>
+          </div>
+          <div id="differentials"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer band band--dark">
+  <div class="shell">
+    <p class="footer__line">Bureau of Patty Statistics &middot; A wholly unofficial agency</p>
+    <p class="footer__line footer__line--mono">Doc. BPS/26/001 &middot; Unclassified &middot; Retain for your records</p>
+    <p class="footer__session" id="footer-session" hidden>
+      <span id="footer-session-name">Signed in</span>
+      <button class="linkbtn" type="button" id="signout-btn">Sign out</button>
+    </p>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="scoring.js"></script>
+<script src="analytics.js"></script>
+<script src="insights.js"></script>
+<script src="insight-rules.js"></script>
+<script src="data.js"></script>
+<script src="app.js" defer></script>
+<script>
+  if (new URLSearchParams(window.location.search).get('test') === '1') {
+    var testScript = document.createElement('script');
+    testScript.src = 'tests.js';
+    document.body.appendChild(testScript);
+  }
+</script>
+</body>
+</html>
