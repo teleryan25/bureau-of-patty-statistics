@@ -36,7 +36,9 @@ if (typeof WebSocket !== 'function') {
 var mime = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8'
+  '.css': 'text/css; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.png': 'image/png'
 };
 
 function delay(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
@@ -196,6 +198,25 @@ async function run() {
       "authVisible:!document.getElementById('view-auth').hidden,overflow:document.documentElement.scrollWidth-window.innerWidth})");
     check('clean signed-out state', signedOut.view === 'auth' && signedOut.session === null && signedOut.authVisible, signedOut);
     check('signed-out 375px has no overflow', signedOut.overflow <= 0, signedOut.overflow);
+    var manifestInfo = await send('Page.getAppManifest');
+    check('web app manifest parses without critical errors', /manifest\.webmanifest$/.test(manifestInfo.url) &&
+      !(manifestInfo.errors || []).some(function (error) { return error.critical; }), manifestInfo.errors);
+    var installAssets = await evaluate("(async()=>{var manifest=await fetch(document.querySelector('link[rel=manifest]').href).then(r=>r.json());" +
+      "var icons=await Promise.all(manifest.icons.map(icon=>new Promise((resolve,reject)=>{var image=new Image();" +
+      "image.onload=()=>resolve({src:icon.src,width:image.naturalWidth,height:image.naturalHeight,purpose:icon.purpose});" +
+      "image.onerror=reject;image.src=icon.src})));return {manifest:manifest,icons:icons," +
+      "appleIcon:document.querySelector('link[rel=apple-touch-icon]').getAttribute('href')," +
+      "appleTitle:document.querySelector('meta[name=apple-mobile-web-app-title]').content," +
+      "appleCapable:document.querySelector('meta[name=apple-mobile-web-app-capable]').content}})()");
+    check('manifest declares the BPS standalone root experience', installAssets.manifest.name === 'Bureau of Patty Statistics' &&
+      installAssets.manifest.short_name === 'BPS' && installAssets.manifest.display === 'standalone' &&
+      installAssets.manifest.start_url === '/' && installAssets.manifest.scope === '/', installAssets.manifest);
+    check('manifest icons load at declared sizes with a maskable asset', installAssets.icons.length === 3 &&
+      installAssets.icons.some(function (icon) { return icon.width === 192 && icon.height === 192; }) &&
+      installAssets.icons.filter(function (icon) { return icon.width === 512 && icon.height === 512; }).length === 2 &&
+      installAssets.icons.some(function (icon) { return icon.purpose === 'maskable'; }), installAssets.icons);
+    check('iOS Home Screen metadata uses BPS and the Apple icon', installAssets.appleTitle === 'BPS' &&
+      installAssets.appleCapable === 'yes' && installAssets.appleIcon === 'icons/apple-touch-icon.png', installAssets);
     check('auth view uses password login without code entry', await evaluate("!!document.getElementById('auth-password') && " +
       "!document.getElementById('auth-code-form')"));
     await evaluate("(()=>{document.getElementById('auth-email').value='ryanburtonwi@gmail.com';" +
