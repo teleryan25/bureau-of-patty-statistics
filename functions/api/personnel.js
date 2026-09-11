@@ -41,7 +41,8 @@ export async function onRequestPost({ request, env }) {
     }
     if (!displayName || !/^\S+@\S+\.\S+$/.test(email)) return json({ error: 'Display name and valid email are required.' }, 400);
     const auditorKey = displayName.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const redirect = encodeURIComponent(`${new URL(request.url).origin}/?auth=invite`);
+    const appBase = String(env.BPS_APP_URL || 'https://pattybureau.com/app/').replace(/\/?$/, '/');
+    const redirect = encodeURIComponent(`${appBase}?auth=invite`);
     if (input.action === 'resend') {
       await supabase(env, `/auth/v1/resend?redirect_to=${redirect}`, { method: 'POST',
         body: JSON.stringify({ type: 'signup', email }) });
