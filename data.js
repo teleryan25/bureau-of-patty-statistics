@@ -104,6 +104,65 @@
 
   function nowIso() { return new Date().toISOString(); }
 
+  /* ---------- PostgREST rows -> canonical register ----------
+     Shared by the Supabase adapter and the public register endpoint
+     (functions/api/public/register.js), so both attach audits to
+     establishments, resolve locations and map auditor keys identically. */
+  function locationFromRow(l) {
+    return { id: l.id, name: l.name, nameKey: l.name_key, group: l.location_group,
+             isPreset: !!l.is_preset, archived: !!l.archived, createdBy: l.created_by,
+             createdAt: l.created_at };
+  }
+
+  function profileFromRow(p) {
+    return { id: p.id, auditorKey: p.auditor_key, displayName: p.display_name, email: p.email,
+             active: p.active, role: p.role, status: p.invitation_status, createdAt: p.created_at };
+  }
+
+  function registerFromRows(rows) {
+    var establishments = rows.establishments || [];
+    var audits = rows.audits || [];
+    var locations = (rows.locations || []).map(locationFromRow);
+    var profiles = rows.profiles || [];
+
+    var keyById = {};
+    profiles.forEach(function (p) { keyById[p.id] = p.auditor_key; });
+    var locById = {};
+    locations.forEach(function (l) { locById[l.id] = l; });
+
+    var byEst = {};
+    audits.forEach(function (a) {
+      var loc = a.location_id ? locById[a.location_id] : null;
+      var row = Object.assign(rowToScores(a), {
+        id: a.id,
+        establishmentId: a.establishment_id,
+        auditorId: a.auditor_id,
+        auditorKey: keyById[a.auditor_id] || null,
+        burger: a.burger,
+        locationId: a.location_id,
+        locationName: loc ? loc.name : null,
+        schemaVersion: a.schema_version,
+        createdAt: a.created_at,
+        updatedAt: a.updated_at
+      });
+      if (!row.auditorKey) return;
+      (byEst[a.establishment_id] = byEst[a.establishment_id] || []).push(row);
+    });
+
+    return {
+      profiles: profiles.map(profileFromRow),
+      locations: locations,
+      establishments: establishments.map(function (e) {
+        return {
+          id: e.id, fileNumber: e.file_number, name: e.name, nameKey: e.name_key,
+          category: T.coerceCategory(e.category), createdBy: e.created_by,
+          createdAt: e.created_at, updatedAt: e.updated_at,
+          audits: byEst[e.id] || []
+        };
+      })
+    };
+  }
+
   /* ===========================================================
      MOCK ADAPTER
      In-memory. Simulates a dynamic auditor roster, the shared location
@@ -695,11 +754,7 @@
       throw err;
     }
 
-    function locationRow(l) {
-      return { id: l.id, name: l.name, nameKey: l.name_key, group: l.location_group,
-               isPreset: !!l.is_preset, archived: !!l.archived, createdBy: l.created_by,
-               createdAt: l.created_at };
-    }
+    var locationRow = locationFromRow;
 
     /* Postgres raises 23505 on the unique name_key indexes. Translate it
        into the same typed error the mock adapter produces so the UI has
@@ -778,49 +833,12 @@
           client.from('profiles').select('id, auditor_key, display_name, email, active, role, invitation_status, created_at')
         ]).then(function (results) {
           results.forEach(function (r) { if (r.error) guardSchema(r.error); });
-          var establishments = results[0].data || [];
-          var audits = results[1].data || [];
-          var locations = (results[2].data || []).map(locationRow);
-          var profiles = results[3].data || [];
-
-          var keyById = {};
-          profiles.forEach(function (p) { keyById[p.id] = p.auditor_key; });
-          var locById = {};
-          locations.forEach(function (l) { locById[l.id] = l; });
-
-          var byEst = {};
-          audits.forEach(function (a) {
-            var loc = a.location_id ? locById[a.location_id] : null;
-            var row = Object.assign(rowToScores(a), {
-              id: a.id,
-              establishmentId: a.establishment_id,
-              auditorId: a.auditor_id,
-              auditorKey: keyById[a.auditor_id] || null,
-              burger: a.burger,
-              locationId: a.location_id,
-              locationName: loc ? loc.name : null,
-              schemaVersion: a.schema_version,
-              createdAt: a.created_at,
-              updatedAt: a.updated_at
-            });
-            if (!row.auditorKey) return;
-            (byEst[a.establishment_id] = byEst[a.establishment_id] || []).push(row);
+          return registerFromRows({
+            establishments: results[0].data,
+            audits: results[1].data,
+            locations: results[2].data,
+            profiles: results[3].data
           });
-
-          return {
-            profiles: profiles.map(function (p) { return { id: p.id, auditorKey: p.auditor_key,
-              displayName: p.display_name, email: p.email, active: p.active, role: p.role,
-              status: p.invitation_status, createdAt: p.created_at }; }),
-            locations: locations,
-            establishments: establishments.map(function (e) {
-              return {
-                id: e.id, fileNumber: e.file_number, name: e.name, nameKey: e.name_key,
-                category: T.coerceCategory(e.category), createdBy: e.created_by,
-                createdAt: e.created_at, updatedAt: e.updated_at,
-                audits: byEst[e.id] || []
-              };
-            })
-          };
         });
       },
 
@@ -1097,6 +1115,9 @@
     chooseAdapter: chooseAdapter,
     scoresToColumns: scoresToColumns,
     rowToScores: rowToScores,
+    locationFromRow: locationFromRow,
+    profileFromRow: profileFromRow,
+    registerFromRows: registerFromRows,
     cleanEstablishmentInput: cleanEstablishmentInput,
     cleanLocationInput: cleanLocationInput,
     cleanAuditInput: cleanAuditInput,

@@ -256,9 +256,12 @@ async function run() {
       "appleIcon:document.querySelector('link[rel=apple-touch-icon]').getAttribute('href')," +
       "appleTitle:document.querySelector('meta[name=apple-mobile-web-app-title]').content," +
       "appleCapable:document.querySelector('meta[name=apple-mobile-web-app-capable]').content}})()");
-    check('manifest declares the BPS standalone root experience', installAssets.manifest.name === 'Bureau of Patty Statistics' &&
+    /* Relative start/scope: the installed app opens wherever it is served —
+       / on patty-stats.pages.dev, /app/ on pattybureau.com (where / is the
+       public site). */
+    check('manifest declares the BPS standalone app experience', installAssets.manifest.name === 'Bureau of Patty Statistics' &&
       installAssets.manifest.short_name === 'BPS' && installAssets.manifest.display === 'standalone' &&
-      installAssets.manifest.start_url === '/' && installAssets.manifest.scope === '/', installAssets.manifest);
+      installAssets.manifest.start_url === './' && installAssets.manifest.scope === './', installAssets.manifest);
     check('manifest icons load at declared sizes with a maskable asset', installAssets.icons.length === 3 &&
       installAssets.icons.some(function (icon) { return icon.width === 192 && icon.height === 192; }) &&
       installAssets.icons.filter(function (icon) { return icon.width === 512 && icon.height === 512; }).length === 2 &&

@@ -2,25 +2,484 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="The Bureau of Patty Statistics advances the science of eating hamburgers." />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bureau of Patty Statistics — Official Burger Rankings</title>
+  <meta name="description" content="Live, certified hamburger rankings from the Bureau of Patty Statistics: an independent, underfunded authority for standardized hamburger performance measurement in the Minneapolis–St. Paul area." />
+  <link rel="canonical" href="https://pattybureau.com/" />
+  <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#001e2b" />
-  <title>Bureau of Patty Statistics</title>
-  <link rel="icon" href="/icons/favicon-32.png" />
-  <style>
-    :root{color-scheme:dark;--ink:#001e2b;--paper:#f4efe3;--accent:#d6a928;--muted:#b8c7c5}
-    *{box-sizing:border-box}body{margin:0;background:var(--ink);color:var(--paper);font-family:Georgia,serif;min-height:100vh;display:grid;place-items:center}
-    main{width:min(48rem,calc(100% - 2rem));padding:4rem 0}.eyebrow{font:600 .72rem/1.4 ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-    h1{font-size:clamp(3rem,10vw,6.8rem);font-weight:400;line-height:.88;letter-spacing:-.045em;margin:.8rem 0 1.5rem}p{font-size:clamp(1.05rem,3vw,1.35rem);line-height:1.55;color:var(--muted);max-width:38rem}
-    a{display:inline-block;margin-top:1.5rem;padding:.9rem 1.2rem;background:var(--accent);color:var(--ink);font:700 .82rem/1 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;border-radius:.2rem}
-    footer{margin-top:5rem;font:500 .68rem/1.5 ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:#78908d}
-  </style>
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Bureau of Patty Statistics" />
+  <meta property="og:title" content="Bureau of Patty Statistics — Official Burger Rankings" />
+  <meta property="og:description" content="Advancing the science of eating hamburgers. Certified establishment rankings, Bureau statistics and full methodology, updated as audits are filed." />
+  <meta property="og:url" content="https://pattybureau.com/" />
+  <meta property="og:image" content="https://pattybureau.com/icons/og-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Bureau of Patty Statistics — Official Burger Rankings. Advancing the science of eating hamburgers." />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Bureau of Patty Statistics — Official Burger Rankings" />
+  <meta name="twitter:description" content="Advancing the science of eating hamburgers. Certified establishment rankings, updated as audits are filed." />
+  <meta name="twitter:image" content="https://pattybureau.com/icons/og-card.png" />
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://pattybureau.com/#bureau",
+        "name": "Bureau of Patty Statistics",
+        "alternateName": "BPS",
+        "url": "https://pattybureau.com/",
+        "logo": "https://pattybureau.com/icons/icon-512.png",
+        "slogan": "Advancing the science of eating hamburgers.",
+        "description": "An independent, underfunded authority for standardized hamburger performance measurement."
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://pattybureau.com/#site",
+        "url": "https://pattybureau.com/",
+        "name": "Bureau of Patty Statistics — Official Burger Rankings",
+        "publisher": { "@id": "https://pattybureau.com/#bureau" }
+      }
+    ]
+  }
+  </script>
+
+  <script>
+    /* Supabase recovery and invitation links belong to the auditor app.
+       Should one ever land here, forward it with its tokens intact. */
+    (function () {
+      var h = window.location.hash;
+      if (/(^|[#&])(access_token|refresh_token|error_code|error_description)=/.test(h) ||
+          /(^|[#&])type=(recovery|invite|signup|magiclink|email_change)(&|$)/.test(h)) {
+        window.location.replace('/app/' + window.location.search + h);
+      }
+      document.documentElement.className += ' js';
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;family=Source+Code+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/public-site.css" />
 </head>
-<body><main>
-  <p class="eyebrow">Office of Culinary Metrics · Public Notice</p>
-  <h1>Bureau of<br />Patty Statistics</h1>
-  <p>Advancing the science of eating hamburgers through standardized inspection, numerical findings, and disputes of entirely unnecessary precision.</p>
-  <a href="/app/">Enter the Bureau register</a>
-  <footer>A wholly unofficial agency · No salary, pension, or actual legal authority</footer>
-</main></body>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============================================================
+     The banner every official website is legally obliged to have.
+     (It is not.)
+     ============================================================ -->
+<div class="govbar">
+  <div class="shell govbar__row">
+    <svg class="govbar__seal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+      <path d="M5.5 10c0-2.5 2.9-4.5 6.5-4.5s6.5 2 6.5 4.5" /><path d="M5 13h14M5 16.5h14" /><path d="M7 20h10" />
+    </svg>
+    <p class="govbar__text">An official website of the Bureau of Patty Statistics</p>
+    <button class="govbar__toggle" type="button" aria-expanded="false" aria-controls="govbar-panel">
+      Here’s how you know
+      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" /></svg>
+    </button>
+  </div>
+  <div class="govbar__panel" id="govbar-panel" hidden>
+    <div class="shell govbar__grid">
+      <div class="govbar__item">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12 16 5l12 7" /><path d="M6 12v12M11 12v12M16 12v12M21 12v12M26 12v12" /><path d="M3 27h26" />
+        </svg>
+        <p><strong>Official Bureau websites use pattybureau.com.</strong>
+          A .gov address was considered and found to be unavailable to organizations of this kind.</p>
+      </div>
+      <div class="govbar__item">
+        <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+          <rect x="7" y="14" width="18" height="13" rx="1.5" /><path d="M11 14v-3.5a5 5 0 0 1 10 0V14" />
+        </svg>
+        <p><strong>Secure pattybureau.com websites use HTTPS.</strong>
+          A lock means you’ve safely connected to the Bureau. It makes no representation about the hamburger.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     Masthead
+     ============================================================ -->
+<header class="masthead">
+  <div class="shell masthead__bar">
+    <a class="brand" href="/">
+      <img class="brand__crest" src="/icons/icon-192.png" width="40" height="40" alt="" />
+      <span class="brand__text">
+        <span class="brand__name">Bureau of Patty Statistics</span>
+        <span class="brand__office">Office of Culinary Metrics</span>
+      </span>
+    </a>
+    <nav class="sitenav" aria-label="Sections">
+      <a href="#rankings">Rankings</a>
+      <a href="#statistics">Statistics</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#bulletins">Bulletins</a>
+      <a href="#about">About</a>
+    </nav>
+    <a class="portal" href="/app/" title="Credentialed personnel only">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="7" width="10" height="7" rx="1" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+      </svg>
+      <span class="portal__text">Examiner Portal</span>
+    </a>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+
+  <!-- ==========================================================
+       HERO — the agency, and the current Certificate of Standing
+       ========================================================== -->
+  <section class="hero band band--dark" aria-labelledby="hero-title">
+    <div class="shell hero__grid">
+      <div class="hero__intro">
+        <p class="label label--accent reveal" style="--d:0">Office of Culinary Metrics · Public Register</p>
+        <h1 class="hero__title reveal" id="hero-title" style="--d:1">Advancing the <em class="accent-rule">science</em> of eating hamburgers.</h1>
+        <p class="hero__lede reveal" style="--d:2">The Bureau of Patty Statistics collects, verifies and publishes standardized hamburger performance data in the public interest, whether or not the public has asked.</p>
+        <p class="hero__fine reveal" style="--d:3">An independent, underfunded authority for standardized hamburger performance measurement. No salary, pension or legal authority is implied.</p>
+        <div class="hero__actions reveal" style="--d:4">
+          <a class="btn btn--primary" href="#rankings">Consult the Official Rankings</a>
+          <a class="textlink" href="#methodology">Read the methodology</a>
+        </div>
+      </div>
+
+      <aside class="cert reveal" id="leader" style="--d:3" aria-label="Current Composite Patty Index leader" aria-live="polite">
+        <div class="cert__frame">
+          <p class="cert__kicker"><span class="label label--accent">Certificate of Standing</span><span class="cert__serial">No. 1 · CPI</span></p>
+          <p class="cert__loading"><span class="skel skel--title"></span><span class="skel skel--figure"></span><span class="skel"></span></p>
+        </div>
+      </aside>
+    </div>
+
+    <div class="shell">
+      <div class="headline reveal" style="--d:5">
+        <p class="headline__caption"><span class="label label--accent">Table A</span> Headline figures, current register</p>
+        <div class="headline__grid" id="headline-grid">
+          <div class="hl hl--skel"><span class="skel"></span><span class="skel skel--title"></span></div>
+          <div class="hl hl--skel"><span class="skel"></span><span class="skel skel--title"></span></div>
+          <div class="hl hl--skel"><span class="skel"></span><span class="skel skel--title"></span></div>
+        </div>
+        <p class="release"><span class="release__dot" aria-hidden="true"></span><span id="release-stamp">Consulting the register…</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 1 — Official Rankings (Table 1)
+       ========================================================== -->
+  <section class="section band band--light" id="rankings" aria-labelledby="rankings-title">
+    <div class="shell">
+      <header class="sechead" data-reveal>
+        <p class="label label--accent">Section 1 · Official Rankings</p>
+        <h2 class="sechead__title" id="rankings-title">Official Establishment Rankings</h2>
+        <p class="sechead__lede release-lede" id="release-lede"><span class="dateline">Minneapolis–St. Paul —</span> <span id="release-text">The Bureau is consulting the register.</span></p>
+      </header>
+
+      <form class="toolbar" id="filters" aria-label="Ranking filters" novalidate>
+        <fieldset class="basis">
+          <legend class="toolbar__label">Ranking basis</legend>
+          <div class="basis__track">
+            <label class="basis__opt"><input type="radio" name="basis" value="overall" checked /><span>Overall</span></label>
+            <label class="basis__opt"><input type="radio" name="basis" value="burger-quality" /><span>Burger Quality</span></label>
+            <label class="basis__opt"><input type="radio" name="basis" value="fries" /><span>Fries</span></label>
+          </div>
+        </fieldset>
+        <div class="toolbar__field">
+          <label class="toolbar__label" for="f-location">Location</label>
+          <select class="select" id="f-location"><option value="">All Locations</option></select>
+        </div>
+        <div class="toolbar__field">
+          <label class="toolbar__label" for="f-class">Establishment class</label>
+          <select class="select" id="f-class"><option value="">All Categories</option></select>
+        </div>
+        <button class="linkbtn toolbar__clear" type="button" id="f-clear" hidden>Clear filters</button>
+      </form>
+
+      <div class="tablewrap">
+        <table class="rt" id="rank-table" aria-describedby="rank-notes">
+          <caption class="rt__caption">
+            <span class="rt__tno">Table 1.</span> <span id="rank-caption">Certified establishments ranked by Composite Patty Index (CPI)</span>
+            <span class="rt__basis" id="rank-basis"></span>
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="rt__rank">Rank</th>
+              <th scope="col" class="rt__est">Establishment</th>
+              <th scope="col" class="rt__num rt__ex">Examiners</th>
+              <th scope="col" class="rt__num rt__au">Audits</th>
+              <th scope="col" class="rt__mv"><abbr title="Change in rank over the past 30 days of filings">30-day</abbr></th>
+              <th scope="col" class="rt__score" id="score-head">CPI</th>
+            </tr>
+          </thead>
+          <tbody id="rank-body">
+            <tr class="rt__skel"><td colspan="6"><span class="skel"></span></td></tr>
+            <tr class="rt__skel"><td colspan="6"><span class="skel"></span></td></tr>
+            <tr class="rt__skel"><td colspan="6"><span class="skel"></span></td></tr>
+            <tr class="rt__skel"><td colspan="6"><span class="skel"></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="empty" id="rank-empty" hidden>
+        <p class="stamp" id="rank-empty-stamp">No Data</p>
+        <h3 class="empty__title" id="rank-empty-title">No certified establishments under this filter.</h3>
+        <p class="empty__text" id="rank-empty-text"></p>
+        <button class="btn btn--ghost" type="button" id="rank-retry" hidden>Consult the register again</button>
+      </div>
+
+      <ol class="footnotes" id="rank-notes">
+        <li>Certified establishments only: current-schema audits on file from at least <span data-bind="min-examiners">two</span> distinct active examiners. Establishments still under examination are named in Section 4 and are not scored.</li>
+        <li>Ranks are computed at full precision and displayed to one decimal place. A location filter restricts the evidence, not the establishment: within a location, an establishment certifies only on audits taken there.</li>
+        <li id="movement-note">30-day movement compares the current register with the same register restricted to audits filed at least thirty days ago.</li>
+        <li>Source: Bureau Register of Audits, ranked by the same scoring code the Bureau’s examiners use. Figures are provisional and subject to revision whenever someone eats a hamburger.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 2 — Bureau Statistics
+       ========================================================== -->
+  <section class="section band band--dark" id="statistics" aria-labelledby="statistics-title">
+    <div class="shell">
+      <header class="sechead" data-reveal>
+        <p class="label label--accent">Section 2 · Key Indicators</p>
+        <h2 class="sechead__title" id="statistics-title">Bureau Statistics</h2>
+        <p class="sechead__lede">Principal indicators of Bureau activity. Not seasonally adjusted. The Bureau has considered seasonal adjustment and concluded that hamburger season is continuous.</p>
+      </header>
+
+      <div class="indicators" id="indicators" data-reveal></div>
+
+      <div class="duo">
+        <div data-reveal>
+          <div class="tablewrap">
+            <table class="dt" id="class-table">
+              <caption><span class="rt__tno">Table 2.</span> Performance by establishment class</caption>
+              <thead><tr><th scope="col">Class</th><th scope="col" class="num">Certified</th><th scope="col" class="num">Mean CPI</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="tnote">Certified establishments only. Bars run from 0 to 100 on the index scale; the Bureau does not truncate its axes to make a point.</p>
+        </div>
+        <div data-reveal>
+          <div class="tablewrap">
+            <table class="dt" id="staff-table">
+              <caption><span class="rt__tno">Table 3.</span> Examining staff — Office of Auditor Accountability</caption>
+              <thead><tr><th scope="col">Examiner</th><th scope="col" class="num">Audits</th><th scope="col" class="num">Establishments</th><th scope="col" class="num">Mean awarded<sup>1</sup></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="tnote"><sup>1</sup> Mean weighted index across the examiner’s audits of certified establishments. Generosity is recorded, not punished.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 3 — Methodology (Technical Note)
+       ========================================================== -->
+  <section class="section band band--light" id="methodology" aria-labelledby="methodology-title">
+    <div class="shell">
+      <header class="sechead" data-reveal>
+        <p class="label label--accent">Section 3 · Technical Note</p>
+        <h2 class="sechead__title" id="methodology-title">How the Bureau scores a hamburger</h2>
+        <p class="sechead__lede">The Official Rankings are not a matter of opinion. They are several matters of opinion, entered to one decimal place and combined by a fixed procedure, applied identically to every establishment.</p>
+      </header>
+
+      <div class="method">
+        <ol class="procs">
+          <li class="proc" data-reveal>
+            <span class="proc__no" aria-hidden="true">1</span>
+            <h3 class="proc__title">Independent examination</h3>
+            <p class="proc__text">Each audit is one examiner, one visit, one burger, at one location. Examiners file independently. They need not visit the same branch, order the same burger or attend on the same day, and no examiner may alter another’s scores.</p>
+          </li>
+          <li class="proc" data-reveal>
+            <span class="proc__no" aria-hidden="true">2</span>
+            <h3 class="proc__title">Scoring</h3>
+            <p class="proc__text">Seven categories are scored from <span data-bind="scale">0.0 to 10.0</span>, in tenths. Six are entered directly. Service is never entered: it is derived as the mean of two sub-scores, <span data-bind="service-parts">Speed and Friendliness</span>. An audit’s weighted score is the weighted mean of all seven categories, at the official weights in Table 4.</p>
+          </li>
+          <li class="proc" data-reveal>
+            <span class="proc__no" aria-hidden="true">3</span>
+            <h3 class="proc__title">One examiner, one vote</h3>
+            <p class="proc__text">Where an examiner has audited an establishment more than once, their audits there are averaged first. Each examiner then carries exactly one vote per establishment, however many times they returned. Repeat visits refine an examiner’s finding; they do not multiply it (Illustration 1).</p>
+          </li>
+          <li class="proc" data-reveal>
+            <span class="proc__no" aria-hidden="true">4</span>
+            <h3 class="proc__title">Certification</h3>
+            <p class="proc__text">An establishment enters the Official Rankings once <span data-bind="min-examiners">two</span> distinct active examiners hold a current-schema audit for it. Every further examiner who files joins the aggregate on equal terms. A current-schema audit records <span data-bind="requirements">every category score, both Service sub-scores, a location and the burger examined</span>. Filings made under an earlier schema are preserved exactly as filed but no longer count, and are never assumed to be zero.</p>
+          </li>
+          <li class="proc" data-reveal>
+            <span class="proc__no" aria-hidden="true">5</span>
+            <h3 class="proc__title">The index</h3>
+            <p class="proc__text">The Composite Patty Index (CPI) is the mean of the examiners’ weighted scores, multiplied by ten: a figure from 0 to 100. All arithmetic is carried at full precision. Figures are rounded to one decimal place for display only, and a rounded figure never decides an order.</p>
+          </li>
+          <li class="proc proc--alt" data-reveal>
+            <span class="proc__no" aria-hidden="true">6</span>
+            <h3 class="proc__title">Alternate ranking bases</h3>
+            <div class="proc__text">
+              <p><strong>Burger Quality Index (BQI)</strong> asks which establishment serves the best hamburger if the fries, the value and the service are disregarded. It uses <span data-bind="bq-weights">the burger categories at their official relative weights</span>, renormalized to 100%, with the same examiner balancing and the same 0–100 scale.</p>
+              <p><strong>Fries</strong> ranks certified establishments on the combined examiner mean for the Fries category alone, on the ten-point scale. It is a category score, not an index, and the Bureau does not call it CPI.</p>
+              <p>Neither is a separate certification. An establishment is ranked on every basis or on none.</p>
+            </div>
+          </li>
+        </ol>
+
+        <aside class="method__aside" data-reveal>
+          <div class="tablewrap">
+            <table class="dt dt--light" id="weights-table">
+              <caption><span class="rt__tno">Table 4.</span> Category weights</caption>
+              <thead><tr><th scope="col">Category</th><th scope="col" class="num">CPI</th><th scope="col" class="num">BQI</th></tr></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+          <div class="weightbar" id="weightbar" role="img" aria-label="Composite Patty Index weights as a share of 100"></div>
+
+          <figure class="callout" id="illustration">
+            <figcaption class="callout__title"><span class="rt__tno">Illustration 1.</span> Why the Bureau averages examiners, not audits</figcaption>
+            <div id="illustration-body"></div>
+          </figure>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 4 — Public Bulletins & Notices
+       ========================================================== -->
+  <section class="section band band--paper" id="bulletins" aria-labelledby="bulletins-title">
+    <div class="shell">
+      <header class="sechead" data-reveal>
+        <p class="label label--accent">Section 4 · Findings of the Bureau</p>
+        <h2 class="sechead__title" id="bulletins-title">Public Bulletins &amp; Notices</h2>
+        <p class="sechead__lede">Issued automatically from the certified register. Each notice states a fact the data supports; when the data stops supporting it, the notice is withdrawn without comment.</p>
+      </header>
+
+      <div class="notices" id="notices" aria-live="polite"></div>
+
+      <div class="ledger" data-reveal>
+        <div class="tablewrap">
+          <table class="dt dt--light dt--ledger" id="extremes-table">
+            <caption><span class="rt__tno">Table 5.</span> Category extremes register — highest and lowest combined findings, certified establishments</caption>
+            <thead><tr><th scope="col">Category</th><th scope="col" class="num">Weight</th><th scope="col">Highest</th><th scope="col">Lowest</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="registers">
+        <div data-reveal>
+          <h3 class="subhead"><span class="label label--accent">Register 4-A</span> Recent certifications</h3>
+          <ol class="roll" id="recent-list"></ol>
+        </div>
+        <div data-reveal>
+          <h3 class="subhead"><span class="label label--accent">Register 4-B</span> Current investigations</h3>
+          <p class="roll__intro">Establishments on file awaiting a further independent examiner. They are named, never scored: no figure is published until certification.</p>
+          <ol class="roll" id="investigation-list"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 5 — About the Bureau
+       ========================================================== -->
+  <section class="section band band--dark about-band" id="about" aria-labelledby="about-title">
+    <div class="shell about">
+      <div data-reveal>
+        <p class="label label--accent">Section 5 · Institutional History</p>
+        <h2 class="sechead__title" id="about-title">About the Bureau</h2>
+        <div class="prose">
+          <p>The Bureau of Patty Statistics began as two people who had eaten a great many hamburgers and could no longer tolerate the absence of rigorous measurement. Its earliest proceedings consisted of a scoring sheet, two examiners and a disagreement about bun structure that remains, in several respects, unresolved.</p>
+          <p>Over the objections of no one, the exchange of opinions was formalized: a weighted scoring schema, a certification requirement and a permanent register, followed in due course by a controlled taxonomy of establishment classes and a shared registry of locations. The Bureau has since grown into a multi-examiner institution with an Office of Auditor Accountability and a Records Office whose contents it declines to discuss.</p>
+          <p>The Bureau receives no public funding, holds no regulatory authority and has never been asked for its opinion. It publishes anyway.</p>
+        </div>
+      </div>
+
+      <div data-reveal>
+        <img class="about__crest" src="/icons/icon-512.png" width="512" height="512" alt="The seal of the Bureau of Patty Statistics: a hamburger between laurel branches above the letters BPS." loading="lazy" />
+        <h3 class="subhead subhead--dark"><span class="label label--accent">Charter</span> Articles of Practice</h3>
+        <ol class="articles">
+          <li class="article"><span class="article__no" aria-hidden="true">I</span><p class="article__title">Every hamburger receives due process.</p><p class="article__text">No finding is official until a second examiner has filed.</p></li>
+          <li class="article"><span class="article__no" aria-hidden="true">II</span><p class="article__title">No examiner outvotes the Bureau by eating more.</p><p class="article__text">Repeat visits are averaged before examiners are.</p></li>
+          <li class="article"><span class="article__no" aria-hidden="true">III</span><p class="article__title">Precision is not optional.</p><p class="article__text">Scores are entered to the tenth, computed in full and disputed to the hundredth.</p></li>
+          <li class="article"><span class="article__no" aria-hidden="true">IV</span><p class="article__title">History is not rewritten.</p><p class="article__text">Earlier filings are preserved as filed and never quietly zero-filled.</p></li>
+          <li class="article"><span class="article__no" aria-hidden="true">V</span><p class="article__title">Fries are measured, not assumed.</p><p class="article__text">They are also not burgers.</p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="shell">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <img src="/icons/icon-192.png" width="48" height="48" alt="" />
+        <div>
+          <p class="footer__name">Bureau of Patty Statistics</p>
+          <p class="footer__motto">Advancing the science of eating hamburgers.</p>
+        </div>
+      </div>
+      <nav class="footer__nav" aria-label="Footer">
+        <p class="label label--accent">The Register</p>
+        <a href="#rankings">Official Rankings</a>
+        <a href="#statistics">Bureau Statistics</a>
+        <a href="#methodology">Methodology</a>
+        <a href="#bulletins">Bulletins &amp; Notices</a>
+        <a href="#about">About the Bureau</a>
+      </nav>
+      <div class="footer__staff">
+        <p class="label label--accent">Credentialed Personnel</p>
+        <p class="footer__text">Bureau examiners file audits through the examiner portal. There is no public registration; appointments are made by the Bureau, reluctantly.</p>
+        <a class="footer__portal" href="/app/">Examiner Portal <span aria-hidden="true">→</span></a>
+      </div>
+    </div>
+    <p class="footer__fine">
+      <span>A wholly unofficial agency</span>
+      <span>Not affiliated with any government, restaurant or cattle interest</span>
+      <span>Doc. BPS/PUB/001 · Unclassified · Retain for your records</span>
+    </p>
+  </div>
+</footer>
+
+<!-- Establishment File -->
+<dialog class="file" id="file" aria-labelledby="file-title">
+  <div class="file__sheet" id="file-sheet">
+    <div class="file__head">
+      <div class="file__bar">
+        <p class="label label--accent" id="file-number">Establishment File</p>
+        <button class="file__close" type="button" id="file-close" aria-label="Close establishment file">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+      <h2 class="file__title" id="file-title">—</h2>
+      <p class="file__sub" id="file-sub"></p>
+      <div class="figs" id="file-figs"></div>
+    </div>
+    <div class="file__body" id="file-body"></div>
+  </div>
+</dialog>
+
+<noscript>
+  <p class="noscript">The Official Rankings are computed in your browser from the Bureau register. Please enable JavaScript to consult them.</p>
+</noscript>
+
+<script src="/taxonomy.js" defer></script>
+<script src="/scoring.js" defer></script>
+<script src="/analytics.js" defer></script>
+<script src="/public-register.js" defer></script>
+<script src="/public-site.js" defer></script>
+</body>
 </html>

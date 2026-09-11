@@ -650,14 +650,18 @@
      A location filter restricts the EVIDENCE, not the identity. Culver's
      stays Culver's; only its Eden Prairie audits are considered, and its
      certification is judged on that restricted evidence. */
+  /* `locationIds` widens the same rule to an area (several locations at
+     once): only audits taken somewhere inside it count as evidence. */
   function applyFilter(establishments, options) {
     var locationId = options && options.locationId;
+    var locationIds = options && options.locationIds;
     var category = options && options.category;
     var list = establishments;
     if (category) list = list.filter(function (e) { return e.category === category; });
-    if (locationId) {
+    if (locationId || locationIds) {
+      var allowed = locationIds || [locationId];
       list = list.map(function (e) {
-        return S.restrictToAudits(e, function (a) { return a.locationId === locationId; });
+        return S.restrictToAudits(e, function (a) { return allowed.indexOf(a.locationId) !== -1; });
       }).filter(function (e) { return e.audits.length > 0; });
     }
     return list;
@@ -676,7 +680,8 @@
     var filtered = applyFilter(allEstablishments, options);
 
     var views = filtered.map(buildView).sort(function (a, b) { return a.createdTs - b.createdTs; });
-    var unfilteredViews = (options.locationId || options.category)
+    var filterActive = !!(options.locationId || options.locationIds || options.category);
+    var unfilteredViews = filterActive
       ? allEstablishments.map(buildView).sort(function (a, b) { return a.createdTs - b.createdTs; })
       : views;
 
@@ -706,12 +711,15 @@
     var repeatRestaurants = restaurants.filter(function (r) { return r.revisited; });
 
     var pendingFor = {}, coverage = {};
+    /* Coverage begins when an establishment first enters the register through
+       a filed audit. Bare establishment rows are not field assignments. */
+    var registeredViews = unfilteredViews.filter(function (v) { return v.audits.length > 0; });
     auditorKeys.forEach(function (key) {
       pendingFor[key] = pending.filter(function (v) { return v.contributorKeys.indexOf(key) === -1; });
-      var outstanding = unfilteredViews.filter(function (v) { return v.contributorKeys.indexOf(key) === -1; });
+      var outstanding = registeredViews.filter(function (v) { return v.contributorKeys.indexOf(key) === -1; });
       coverage[key] = {
-        auditorKey: key, audited: unfilteredViews.length - outstanding.length,
-        total: unfilteredViews.length, remaining: outstanding.length, outstanding: outstanding
+        auditorKey: key, audited: registeredViews.length - outstanding.length,
+        total: registeredViews.length, remaining: outstanding.length, outstanding: outstanding
       };
     });
 
@@ -749,9 +757,10 @@
       generatedAt: Date.now(),
       filter: {
         locationId: options.locationId || null,
+        locationIds: options.locationIds || null,
         locationName: options.locationName || null,
         category: options.category || null,
-        active: !!(options.locationId || options.category)
+        active: filterActive
       },
       counts: {
         /* `burgers` retained as the register-size figure many rules read. */

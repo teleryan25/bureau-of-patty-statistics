@@ -892,8 +892,7 @@
 
   function renderRankings() {
     var basis = S.rankingBasis(state.filter.basis);
-    var ranked = state.metrics.ranked.slice();
-    ranked.sort(function (a, b) { return basis.getScore(b) - basis.getScore(a); });
+    var ranked = S.rankByBasis(state.metrics.ranked, basis.key);
     el.rankingsMeta.textContent = 'Certified establishments only, sorted by ' +
       (basis.key === 'overall' ? 'Composite Patty Index' : basis.label + (basis.scale === 100 ? ' Index' : ' score'));
     el.rankingsList.replaceChildren();

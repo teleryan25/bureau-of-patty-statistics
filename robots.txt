@@ -1,0 +1,11 @@
+# Bureau of Patty Statistics — guidance for automated examiners.
+# The public register lives at /. The auditor application (/app/) is for
+# credentialed personnel; the public data endpoint may be read so that
+# rendered pages include the rankings.
+User-agent: *
+Allow: /
+Allow: /api/public/
+Disallow: /app/
+Disallow: /api/
+
+Sitemap: https://pattybureau.com/sitemap.xml

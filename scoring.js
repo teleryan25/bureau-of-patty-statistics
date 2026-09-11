@@ -510,6 +510,14 @@
 
   function rankingBasis(key) { return RANKING_BASES[key] || RANKING_BASES.overall; }
 
+  /* The one ordering every Rankings surface uses — the auditor app and the
+     public website alike. Highest first at full precision; the sort is
+     stable, so equal raw scores keep their incoming (official) order. */
+  function rankByBasis(views, key) {
+    var basis = rankingBasis(key);
+    return (views || []).slice().sort(function (a, b) { return basis.getScore(b) - basis.getScore(a); });
+  }
+
   /** Audits on file that predate the current schema and could be updated. */
   function recertifiableAudits(establishment, auditorKey) {
     return legacyAuditsOf(establishment, auditorKey);
@@ -602,6 +610,7 @@
     SCALE: SCALE,
     RANKING_BASES: RANKING_BASES,
     rankingBasis: rankingBasis,
+    rankByBasis: rankByBasis,
     CERTIFICATION_MIN_AUDITORS: CERTIFICATION_MIN_AUDITORS,
     configureAuditors: configureAuditors,
     auditorProfiles: auditorProfiles,

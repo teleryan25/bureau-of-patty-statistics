@@ -31,6 +31,21 @@ assert.equal(metrics.coverage.chris.remaining, 0, 'coverage recognizes a third a
 assert.equal(S.rankingBasis('fries').getScore(metrics.ranked[0]), 8, 'fries basis reads only aggregate fries');
 assert.equal(S.rankingBasis('fries').scoreLabel, 'Fries', 'fries is never labeled CPI');
 
+const orphan = establishment([]);
+const orphanMetrics = AN.compute(register([orphan]));
+assert.equal(orphanMetrics.coverage.ryan.total, 0, 'zero-audit establishment is excluded from Coverage');
+assert.equal(orphanMetrics.coverage.ryan.remaining, 0, 'zero-audit establishment creates no field work');
+
+const pending = establishment([audit('ryan', 7, 'pending-a1')]);
+const pendingMetrics = AN.compute(register([pending]));
+assert.equal(pendingMetrics.coverage.devin.remaining, 1, 'one-audit establishment appears in another auditor Coverage');
+assert.equal(pendingMetrics.coverage.devin.outstanding[0].id, pending.id, 'pending establishment is the outstanding assignment');
+
+const certified = establishment([audit('ryan', 7, 'certified-a1'), audit('devin', 8, 'certified-a2')]);
+const certifiedMetrics = AN.compute(register([certified]));
+assert.equal(certifiedMetrics.coverage.chris.remaining, 1, 'two-auditor certified establishment appears in a third auditor Coverage');
+assert.equal(certifiedMetrics.coverage.chris.outstanding[0].certified, true, 'certified establishment remains outstanding for a new auditor');
+
 (async () => {
   const mock = D.createMockAdapter({ seed:false });
   const session = await mock.auth.signInAs('chris');
