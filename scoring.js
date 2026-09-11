@@ -110,6 +110,17 @@
 
   var WEIGHT_TOTAL = 100;
 
+  /* Alternate Rankings view only. These are the official weights for the
+     included categories, divided by their exact source total at calculation
+     time. Keeping integer numerators avoids rounding the normalized weights. */
+  var BURGER_QUALITY_WEIGHTS = {
+    patty:         25,
+    overallFlavor: 25,
+    bun:           15,
+    condiments:     5
+  };
+  var BURGER_QUALITY_WEIGHT_TOTAL = 70;
+
   var SCALE = { min: 0, max: 10, step: 0.1, decimals: 1 };
 
   /* The two auditors. `key` is the durable application identity. */
@@ -325,6 +336,22 @@
     return ((ryan + devin) / 2) * 10;
   }
 
+  /** Burger-only weighted score for one current-schema audit/profile, 0–10. */
+  function calculateBurgerQualityScore(scores) {
+    if (!isCompleteScoreSet(scores)) return null;
+    return Object.keys(BURGER_QUALITY_WEIGHTS).reduce(function (sum, key) {
+      return sum + categoryValue(scores, key) * BURGER_QUALITY_WEIGHTS[key];
+    }, 0) / BURGER_QUALITY_WEIGHT_TOTAL;
+  }
+
+  /** Auditor-balanced Burger Quality Index, 0–100. */
+  function calculateBQI(ryanScores, devinScores) {
+    var ryan = calculateBurgerQualityScore(ryanScores);
+    var devin = calculateBurgerQualityScore(devinScores);
+    if (ryan == null || devin == null) return null;
+    return ((ryan + devin) / 2) * 10;
+  }
+
   /** Descriptive per-category means. Findings only — never feeds CPI. */
   function calculateCombinedCategoryAverages(ryanScores, devinScores) {
     var out = {};
@@ -426,6 +453,11 @@
     return calculateCPI(profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
   }
 
+  function bqiOf(establishment) {
+    if (!isCertified(establishment)) return null;
+    return calculateBQI(profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
+  }
+
   function combinedOf(establishment) {
     return calculateCombinedCategoryAverages(
       profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
@@ -447,6 +479,12 @@
   function rankEstablishments(establishments) {
     return certifiedOnly(establishments).slice().sort(function (a, b) {
       return cpiOf(b) - cpiOf(a);
+    });
+  }
+
+  function rankEstablishmentsByBurgerQuality(establishments) {
+    return certifiedOnly(establishments).slice().sort(function (a, b) {
+      return bqiOf(b) - bqiOf(a);
     });
   }
 
@@ -512,6 +550,8 @@
     categoryLabel: categoryLabel,
     SCORING_WEIGHTS: SCORING_WEIGHTS,
     WEIGHT_TOTAL: WEIGHT_TOTAL,
+    BURGER_QUALITY_WEIGHTS: BURGER_QUALITY_WEIGHTS,
+    BURGER_QUALITY_WEIGHT_TOTAL: BURGER_QUALITY_WEIGHT_TOTAL,
     SCALE: SCALE,
     AUDITORS: AUDITORS,
     AUDITOR_KEYS: AUDITOR_KEYS,
@@ -546,6 +586,8 @@
 
     calculateWeightedReviewerScore: calculateWeightedReviewerScore,
     calculateCPI: calculateCPI,
+    calculateBurgerQualityScore: calculateBurgerQualityScore,
+    calculateBQI: calculateBQI,
     calculateCombinedCategoryAverages: calculateCombinedCategoryAverages,
     meanScoreSet: meanScoreSet,
 
@@ -561,10 +603,12 @@
     missingAuditor: missingAuditor,
     statusOf: statusOf,
     cpiOf: cpiOf,
+    bqiOf: bqiOf,
     combinedOf: combinedOf,
 
     certifiedOnly: certifiedOnly,
     rankEstablishments: rankEstablishments,
+    rankEstablishmentsByBurgerQuality: rankEstablishmentsByBurgerQuality,
     personalRanking: personalRanking,
     officialRankOf: officialRankOf,
     personalRankOf: personalRankOf,

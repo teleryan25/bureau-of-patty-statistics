@@ -325,6 +325,23 @@ async function run() {
     check('location and category filters apply together',
       !!combined.location && !!combined.category && combined.allMatch, combined);
 
+    var qualityFiltered = await evaluate("(()=>{var basis=document.getElementById('ranking-basis');" +
+      "basis.value='burger-quality';basis.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "var scores=[...document.querySelectorAll('#rankings-list .ranking__score')];" +
+      "return {basis:BPS.app.state.filter.basis,location:BPS.app.state.filter.locationId," +
+      "category:BPS.app.state.filter.category,labels:scores.map(e=>e.querySelector('small').textContent)," +
+      "meta:document.getElementById('rankings-meta').textContent}})()");
+    check('Location + Class + Burger Quality rerenders together',
+      qualityFiltered.basis === 'burger-quality' && !!qualityFiltered.location &&
+      !!qualityFiltered.category && qualityFiltered.labels.every(function (x) { return x === 'BQI'; }) &&
+      /Burger Quality/.test(qualityFiltered.meta), qualityFiltered);
+
+    var overallAgain = await evaluate("(()=>{var basis=document.getElementById('ranking-basis');" +
+      "basis.value='overall';basis.dispatchEvent(new Event('change',{bubbles:true}));" +
+      "return {basis:BPS.app.state.filter.basis,labels:[...document.querySelectorAll('#rankings-list .ranking__score small')].map(e=>e.textContent)}})()");
+    check('switching back to Overall immediately restores CPI labels',
+      overallAgain.basis === 'overall' && overallAgain.labels.every(function (x) { return x === 'CPI'; }), overallAgain);
+
     var cleared = await evaluate("(()=>{document.getElementById('filter-clear').click();" +
       "return {location:BPS.app.state.filter.locationId,category:BPS.app.state.filter.category," +
       "rows:document.querySelectorAll('#rankings-list .ranking').length}})()");
@@ -771,7 +788,9 @@ async function run() {
           "var smallInputs=[...document.querySelectorAll('input')].filter(visible).map(e=>parseFloat(getComputedStyle(e).fontSize))" +
           ".filter(n=>n<16);var smallButtons=[...document.querySelectorAll('button')].filter(visible).map(e=>({text:e.textContent.trim().slice(0,30)," +
           "h:e.getBoundingClientRect().height})).filter(x=>x.h<43.5);return {inner:window.innerWidth,doc:document.documentElement.scrollWidth," +
-          'body:document.body.scrollWidth,smallInputs:smallInputs,smallButtons:smallButtons}})()');
+          "body:document.body.scrollWidth,smallInputs:smallInputs,smallButtons:smallButtons," +
+          "toolbar:BPS.app.state.view==='rankings'?document.getElementById('rankings-filters').getBoundingClientRect().height:null," +
+          "rankingSelects:BPS.app.state.view==='rankings'?[...document.querySelectorAll('#rankings-filters select')].map(e=>e.getBoundingClientRect().height):[]}})()");
         widthResults.push({ width: width, view: view, layout: layout });
       }
     }
@@ -783,6 +802,12 @@ async function run() {
     check('all major views have no overflow at 375/430/768/1280', overflow.length === 0, overflow);
     check('visible inputs remain at least 16px', smallInputs.length === 0, smallInputs);
     check('visible touch buttons remain at least 44px', smallButtons.length === 0, smallButtons);
+    var rankingLayouts = widthResults.filter(function (x) { return x.view === 'rankings'; });
+    check('compact ranking controls stay one tight row at 375/430/768/1280',
+      rankingLayouts.every(function (x) {
+        return x.layout.toolbar <= 90 && x.layout.rankingSelects.length === 3 &&
+          x.layout.rankingSelects.every(function (height) { return height >= 43.5; });
+      }), rankingLayouts);
 
     /* Page-level overflow is not the only way a phone layout breaks: text
        clipped inside its own box passes an overflow check and still reads

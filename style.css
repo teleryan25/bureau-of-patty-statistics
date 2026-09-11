@@ -1908,9 +1908,10 @@ main { flex: 1 0 auto; }
 /* ---------- Rankings filters ---------- */
 .filters {
   display: grid;
-  gap: .75rem;
-  margin-bottom: 1.25rem;
-  padding: .875rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+  margin-bottom: 1rem;
+  padding: .625rem;
   background: var(--surface);
   border: 1px solid var(--bd);
   border-radius: var(--r-card);
@@ -1924,16 +1925,21 @@ main { flex: 1 0 auto; }
   text-transform: uppercase;
   color: var(--tx-muted);
 }
-.filters__clear { justify-self: start; }
+.filters__clear { grid-column: 1; justify-self: start; }
 .filters__note {
-  font-size: .8125rem;
-  line-height: 1.5;
+  grid-column: 2 / -1;
+  align-self: center;
+  font-size: .6875rem;
+  line-height: 1.25;
   color: var(--tx-muted);
 }
 @media (min-width: 30rem) {
-  .filters { grid-template-columns: 1fr 1fr; align-items: end; }
-  .filters__clear, .filters__note { grid-column: 1 / -1; }
+  .filters { grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; }
+  .filters__clear { align-self: center; }
+  .filters__note { grid-column: 2 / -1; }
 }
+
+.filters .input--select { min-height: var(--tap); padding-block: .5rem; }
 
 /* A select must match .input geometry exactly, including the 16px
    font-size that stops iOS Safari zooming the viewport on focus. */

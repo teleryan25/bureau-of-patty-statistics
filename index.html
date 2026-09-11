@@ -137,11 +137,18 @@
         <div class="section__head">
           <p class="label label--accent">Section II</p>
           <h2 class="section__title">Official Establishment Rankings</h2>
-          <p class="section__meta">Certified establishments only, sorted by Composite Patty Index</p>
+          <p class="section__meta" id="rankings-meta">Certified establishments only, sorted by Composite Patty Index</p>
         </div>
 
-        <!-- Location and class filters. Both may be applied together. -->
+        <!-- Compact ranking basis and evidence filters. All may be combined. -->
         <div class="filters" id="rankings-filters">
+          <div class="filters__field filters__field--basis">
+            <label class="filters__label" for="ranking-basis">Basis</label>
+            <select class="input input--select" id="ranking-basis">
+              <option value="overall">Overall</option>
+              <option value="burger-quality">Burger Quality</option>
+            </select>
+          </div>
           <div class="filters__field">
             <label class="filters__label" for="filter-location">Location</label>
             <select class="input input--select" id="filter-location">
@@ -149,7 +156,7 @@
             </select>
           </div>
           <div class="filters__field">
-            <label class="filters__label" for="filter-category">Establishment Class</label>
+            <label class="filters__label" for="filter-category">Class</label>
             <select class="input input--select" id="filter-category">
               <option value="">All Categories</option>
             </select>

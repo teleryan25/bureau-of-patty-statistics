@@ -52,7 +52,7 @@
     register: { establishments: [], locations: [] },
     metrics: null,         /* filtered — drives Rankings */
     globalMetrics: null,   /* unfiltered — drives everything else */
-    filter: { locationId: null, category: null },
+    filter: { locationId: null, category: null, basis: 'overall' },
     records: [],
     recordAcks: {},
     disasterEvents: [],
@@ -142,7 +142,7 @@
     state.disasterEvents = [];
     state.recordId = null;
     state.justAddedId = null;
-    state.filter = { locationId: null, category: null };
+    state.filter = { locationId: null, category: null, basis: 'overall' };
     if (ceremony) ceremony.clear();
     if (state.justAddedTimer) {
       clearTimeout(state.justAddedTimer);
@@ -174,6 +174,7 @@
       statSpecimens: qs('[data-stat="specimens"]'), statMean: qs('[data-stat="mean"]'),
       statAudits: qs('[data-stat="audits"]'), statPending: qs('[data-stat="pending"]'),
       filterLocation: $('filter-location'), filterCategory: $('filter-category'),
+      rankingBasis: $('ranking-basis'), rankingsMeta: $('rankings-meta'),
       filterClear: $('filter-clear'), filterNote: $('filter-note'),
       /* pending */
       pendingRecertWrap: $('pending-recert-wrap'), pendingRecert: $('pending-recert'),
@@ -702,6 +703,7 @@
     var m = state.globalMetrics;
     var previousLocation = state.filter.locationId || '';
     var previousCategory = state.filter.category || '';
+    el.rankingBasis.value = state.filter.basis;
 
     /* Locations: those actually used, plus anything still selectable. */
     var options = document.createDocumentFragment();
@@ -763,6 +765,7 @@
   function applyFilterChange() {
     state.filter.locationId = el.filterLocation.value || null;
     state.filter.category = el.filterCategory.value || null;
+    state.filter.basis = el.rankingBasis.value === 'burger-quality' ? 'burger-quality' : 'overall';
     recompute();
     renderAll();
   }
@@ -770,6 +773,7 @@
   function bindFilters() {
     el.filterLocation.addEventListener('change', applyFilterChange);
     el.filterCategory.addEventListener('change', applyFilterChange);
+    el.rankingBasis.addEventListener('change', applyFilterChange);
     el.filterClear.addEventListener('click', function () {
       el.filterLocation.value = '';
       el.filterCategory.value = '';
@@ -819,8 +823,9 @@
     body.appendChild(meta);
     btn.appendChild(body);
 
-    var score = node('span', 'ranking__score', view.certified ? S.formatCPI(view.cpi) : '—');
-    score.appendChild(node('small', null, view.certified ? 'CPI' : 'Pending'));
+    var displayScore = opts.score == null ? view.cpi : opts.score;
+    var score = node('span', 'ranking__score', view.certified ? S.formatCPI(displayScore) : '—');
+    score.appendChild(node('small', null, view.certified ? (opts.scoreLabel || 'CPI') : 'Pending'));
     btn.appendChild(score);
     btn.appendChild(icon('ranking__chev', 'M6 3l5 5-5 5'));
     btn.addEventListener('click', function () { openRecord(view.id); });
@@ -841,17 +846,32 @@
   function renderStats() {
     var m = state.metrics;
     el.statSpecimens.textContent = String(m.counts.certified);
-    el.statMean.textContent = S.formatCPI(m.paired.cpi.mean);
+    var values = state.filter.basis === 'burger-quality'
+      ? m.ranked.map(function (v) { return S.calculateBQI(v.scores.ryan, v.scores.devin); })
+      : m.ranked.map(function (v) { return v.cpi; });
+    var mean = values.length ? values.reduce(function (sum, value) { return sum + value; }, 0) / values.length : null;
+    el.statMean.textContent = S.formatCPI(mean);
     el.statAudits.textContent = String(m.counts.audits);
     el.statPending.textContent = String(m.counts.pending);
   }
 
   function renderRankings() {
-    var ranked = state.metrics.ranked;
+    var burgerQuality = state.filter.basis === 'burger-quality';
+    var ranked = state.metrics.ranked.slice();
+    if (burgerQuality) ranked.sort(function (a, b) {
+      return S.calculateBQI(b.scores.ryan, b.scores.devin) - S.calculateBQI(a.scores.ryan, a.scores.devin);
+    });
+    el.rankingsMeta.textContent = 'Certified establishments only, sorted by ' +
+      (burgerQuality ? 'Burger Quality Index' : 'Composite Patty Index');
     el.rankingsList.replaceChildren();
     if (ranked.length) {
       var frag = document.createDocumentFragment();
-      ranked.forEach(function (v) { frag.appendChild(buildEstablishmentRow(v)); });
+      ranked.forEach(function (v, index) {
+        var rowView = Object.assign({}, v, { rank: index + 1 });
+        frag.appendChild(buildEstablishmentRow(rowView, burgerQuality ? {
+          score: S.calculateBQI(v.scores.ryan, v.scores.devin), scoreLabel: 'BQI'
+        } : null));
+      });
       el.rankingsList.appendChild(frag);
     }
     el.rankingsList.hidden = !ranked.length;

@@ -123,6 +123,27 @@
   check('both all 0 -> CPI 0', S.calculateCPI(flat(0), flat(0)), 0);
   check('both all 5 -> CPI 50', S.calculateCPI(flat(5), flat(5)), 50);
 
+  /* Burger Quality is a Rankings-only view: exact 70-point denominator,
+     full precision, and the same current-schema gate as CPI. */
+  check('Burger Quality source weights sum exactly to 70',
+    Object.keys(S.BURGER_QUALITY_WEIGHTS).reduce(function (sum, key) {
+      return sum + S.BURGER_QUALITY_WEIGHTS[key];
+    }, 0), S.BURGER_QUALITY_WEIGHT_TOTAL);
+  check('Burger Quality normalized weights sum mathematically to 100%',
+    Object.keys(S.BURGER_QUALITY_WEIGHTS).reduce(function (sum, key) {
+      return sum + S.BURGER_QUALITY_WEIGHTS[key] / S.BURGER_QUALITY_WEIGHT_TOTAL;
+    }, 0), 1);
+  var bqBase = flat(5), bqExcluded = flat(5), bqIncluded = flat(5);
+  bqExcluded.fries = 10; bqExcluded.value = 10;
+  bqExcluded.serviceSpeed = 10; bqExcluded.serviceFriendliness = 10;
+  bqIncluded.patty = 6;
+  near('excluded categories do not affect Burger Quality',
+    S.calculateBurgerQualityScore(bqExcluded), S.calculateBurgerQualityScore(bqBase));
+  ok('included categories affect Burger Quality',
+    S.calculateBurgerQualityScore(bqIncluded) > S.calculateBurgerQualityScore(bqBase));
+  near('Burger Quality retains full precision internally',
+    S.calculateBurgerQualityScore(sc(7.3, 7.4, 7.5, 0, 0, 7.5, 0, 0)), 7.392857142857143);
+
   /* Worked example under the v2 weights:
      patty 9.0*25 + flavor 9.2*25 + bun 8.0*15 + fries 7.5*10
      + value 8.5*10 + condiments 9.0*5 + service 8.0*10
@@ -236,6 +257,34 @@
     audit('ryan', flat(9), { locationId: 'loc-2', locationName: 'Richfield', at: '2026-06-05T12:00:00Z' }),
     audit('ryan', flat(7), { locationId: 'loc-1', locationName: 'Uptown', at: '2026-06-09T12:00:00Z' })
   ]);
+
+  var balancedBQ = establishment('ebq', 'Balanced Burger', 'fast-food', [
+    audit('ryan', flat(10)), audit('ryan', flat(10)), audit('ryan', flat(10)),
+    audit('devin', flat(0))
+  ]);
+  near('Burger Quality is auditor-balanced across repeated audits', S.bqiOf(balancedBQ), 50);
+  balancedBQ.audits.push(audit('ryan', flat(4)));
+  near('a repeated audit changes only that auditor mean', S.bqiOf(balancedBQ), 42.5);
+
+  var overallWinner = establishment('overall', 'Overall Winner', 'fast-food', [
+    audit('ryan', sc(7, 7, 7, 10, 10, 7, 10, 10)),
+    audit('devin', sc(7, 7, 7, 10, 10, 7, 10, 10))
+  ]);
+  var qualityWinner = establishment('quality', 'Quality Winner', 'fast-food', [
+    audit('ryan', sc(9, 9, 9, 0, 0, 9, 0, 0)),
+    audit('devin', sc(9, 9, 9, 0, 0, 9, 0, 0))
+  ]);
+  check('Overall ranking remains ordered by CPI',
+    S.rankEstablishments([overallWinner, qualityWinner])[0].id, 'overall');
+  check('Burger Quality can produce a different order',
+    S.rankEstablishmentsByBurgerQuality([overallWinner, qualityWinner])[0].id, 'quality');
+
+  var legacyBQ = establishment('legacy-bq', 'Legacy Quality', 'fast-food', [
+    audit('ryan', flat(9)),
+    audit('devin', sc(9, 9, 9, 9, 9, 9, null, null), { legacy: true, locationId: null })
+  ]);
+  ok('Burger Quality preserves current-schema certification', !S.isCertified(legacyBQ));
+  check('legacy incomplete audits have no Burger Quality index', S.bqiOf(legacyBQ), null);
   near('ryan aggregate is the mean of his audits', S.weightedFor(repeat, 'ryan'), 8);
   near('a repeat visit recalculates the composite', S.cpiOf(repeat), 80);
   check('repeat visits do not multiply the ranked entity',
@@ -344,6 +393,8 @@
   check('location filter keeps the establishment identity', filtered.views[0].name, "Culver's");
   check('location filter judges certification on that evidence', filtered.views[0].status, 'certified');
   near('location filter recomputes the composite from local audits', filtered.views[0].cpi, 75);
+  near('Location + Burger Quality uses the filtered auditor profiles',
+    S.calculateBQI(filtered.views[0].scores.ryan, filtered.views[0].scores.devin), 75);
   ok('unfiltered composite differs from the filtered one',
     m.views.filter(function (v) { return v.id === 'e1'; })[0].cpi !== filtered.views[0].cpi);
 
@@ -355,12 +406,18 @@
   check('category filter selects by class', bars.views.length, 3);
   ok('category filter excludes other classes',
     bars.views.every(function (v) { return v.category === 'bar-pub'; }));
+  ok('Class + Burger Quality scores only certified class results',
+    bars.ranked.every(function (v) {
+      return v.category === 'bar-pub' && S.calculateBQI(v.scores.ryan, v.scores.devin) != null;
+    }));
 
   var both = AN.compute(reg, { locationId: 'loc-1', category: 'bar-pub' });
   check('location and category filters combine', both.views.length, 2);
   ok('combined filter keeps only matching rows',
     both.views.every(function (v) { return v.category === 'bar-pub'; }));
   check('combined filter certification', both.counts.certified, 1);
+  near('Location + Class + Burger Quality uses the combined evidence set',
+    S.calculateBQI(both.ranked[0].scores.ryan, both.ranked[0].scores.devin), 92.5);
 
   var fastFoodAtUptown = AN.compute(reg, { locationId: 'loc-1', category: 'fast-food' });
   check('a filter with no matches yields nothing', fastFoodAtUptown.views.length, 0);
