@@ -1,7 +1,10 @@
 # Bureau auth email configuration
 
-In Supabase Dashboard → Authentication → Email Templates, set the Invite User subject to
-`Notice of Appointment — Bureau of Patty Statistics` and paste `invite.html` into the body.
+The production templates can be managed through Supabase's field-level Management API after
+custom SMTP is enabled (free-tier projects cannot customize templates while using Supabase's
+default sender). The Invite User subject is `Notice of Appointment — Bureau of Patty
+Statistics`; its body is `invite.html`. The Reset Password subject is `Bureau Credential
+Recovery`; its body is `recovery.html`.
 Set the Site URL to the production BPS URL and allow that origin (plus the local development
 origin, if used) in Redirect URLs. Configure SMTP in Supabase for reliable delivery; no SMTP
 credentials belong in this repository.
