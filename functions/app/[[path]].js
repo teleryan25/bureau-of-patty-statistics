@@ -5,5 +5,5 @@ export async function onRequest(context) {
     ? requestUrl.pathname.slice(prefix.length)
     : '';
   const assetUrl = new URL(assetPath ? '/' + assetPath : '/', requestUrl.origin);
-  return context.env.ASSETS.fetch(new Request(assetUrl, context.request));
+  return context.env.ASSETS.fetch(new Request(assetUrl.toString()));
 }
