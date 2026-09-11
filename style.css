@@ -1510,7 +1510,7 @@ main { flex: 1 0 auto; }
   background: var(--bar-track);
   overflow: hidden;
 }
-.diff__fill { display: block; height: 100%; border-radius: var(--r-pill); }
+.diff__fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--teal-active); }
 .diff__fill--ryan { background: var(--green-fn); }
 .diff__fill--devin { background: var(--teal-active); }
 .diff__num {
@@ -1881,16 +1881,20 @@ main { flex: 1 0 auto; }
 
 /* ---------- Five-cell workflow nav ---------- */
 .viewnav__track--five { grid-template-columns: repeat(5, 1fr); }
+.viewnav__track--six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .viewnav__track--five .viewnav__btn {
   font-size: .6875rem;      /* five cells must still fit a 360px viewport */
   letter-spacing: -.1px;
   padding-inline: .125rem;
 }
+.viewnav__track--six .viewnav__btn { min-width: 0; padding-inline: .2rem; font-size: .68rem; }
 @media (min-width: 26.5625rem) {
   .viewnav__track--five .viewnav__btn { font-size: .75rem; }
+  .viewnav__track--six .viewnav__btn { font-size: .75rem; }
 }
 @media (min-width: 48rem) {
   .viewnav__track--five .viewnav__btn { font-size: .875rem; }
+  .viewnav__track--six .viewnav__btn { font-size: .8125rem; }
 }
 
 /* ---------- Four-tile stat strip on Rankings ---------- */

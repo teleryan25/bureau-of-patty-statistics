@@ -454,7 +454,9 @@
      BATCH 4 — AUDITOR SUPERLATIVES (r069–r094)
      ============================================================= */
   function auditorPair(ids, title, opts) {
-    S.AUDITOR_KEYS.forEach(function (who, i) {
+    /* These stable record IDs are intentionally authored for the two founding
+       auditors; dynamic Personnel Files and coverage are generated elsewhere. */
+    ['ryan', 'devin'].forEach(function (who, i) {
       R(ids[i], title.replace('{name}', S.auditorName(who)), {
         family: 'auditor', kind: opts.kind, unit: opts.unit, subject: 'auditor',
         detect: function (m) { return opts.detect(m, who); }
@@ -771,9 +773,11 @@
         } });
   });
 
-  R('r125', 'First Location Worked by Both Auditors', { family: 'location', kind: 'first', unit: 'count', subject: 'location',
+  R('r125', 'First Location Worked by Multiple Auditors', { family: 'location', kind: 'first', unit: 'count', subject: 'location',
     detect: function (m) {
-      var hit = m.activeLocations.filter(function (l) { return l.ryanAudits > 0 && l.devinAudits > 0; })[0];
+      var hit = m.activeLocations.filter(function (l) {
+        return Object.keys(l.byAuditor || {}).filter(function (key) { return l.byAuditor[key] > 0; }).length >= 2;
+      })[0];
       return hit ? { value: hit.audits, valueText: hit.name, detail: { key: hit.id, location: hit.name } } : null;
     } });
 

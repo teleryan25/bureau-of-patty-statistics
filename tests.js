@@ -26,6 +26,11 @@
   var results = [];
   var K = S.CATEGORY_KEYS;
   var INPUTS = S.INPUT_KEYS;
+  var TEST_PROFILES = [
+    { id: 'uuid-ryan', auditorKey: 'ryan', displayName: 'Ryan', active: true, role: 'admin' },
+    { id: 'uuid-devin', auditorKey: 'devin', displayName: 'Devin', active: true, role: 'auditor' }
+  ];
+  S.configureAuditors(TEST_PROFILES);
 
   function check(name, actual, expected) {
     results.push({ name: name, pass: Object.is(actual, expected) || actual === expected, actual: actual, expected: expected });
@@ -68,6 +73,7 @@
     opts = opts || {};
     (audits || []).forEach(function (a) { a.establishmentId = id; });
     return {
+      profiles: TEST_PROFILES,
       id: id, fileNumber: 'BPS-' + id, name: name, nameKey: T.normalizeName(name),
       category: category || 'other', createdBy: 'uuid-ryan',
       createdAt: opts.createdAt || '2026-06-01T12:00:00Z',
@@ -887,7 +893,7 @@
         return sb.saveRecords([{ recordId: 'r004', value: 99, fingerprint: 'fp2', detail: {} }]);
       })
       .then(function () {
-        var rpc = calls.rpc[0];
+        var rpc = calls.rpc.filter(function (call) { return call.name === 'bps_records_sync'; })[0];
         check('Supabase writes records through one atomic RPC', rpc.name, 'bps_records_sync');
         check('Supabase record sync sends a batch', rpc.args.p_rows.length, 1);
         return sb.ackRecords({ r004: 'fp2' });

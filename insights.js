@@ -131,9 +131,9 @@
   function isEligible(rule, m) {
     if (m.counts.certified < rule.minCertified) return false;
     if (rule.minPending > 0 && m.counts.pending < rule.minPending) return false;
-    if (rule.minAudits > 0 &&
-        m.auditors.ryan.n < rule.minAudits &&
-        m.auditors.devin.n < rule.minAudits) return false;
+    if (rule.minAudits > 0 && !Object.keys(m.auditors).some(function (key) {
+      return m.auditors[key].n >= rule.minAudits;
+    })) return false;
     try {
       return !!rule.test(m);
     } catch (err) {

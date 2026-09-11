@@ -106,7 +106,7 @@
 
   /* ===========================================================
      MOCK ADAPTER
-     In-memory. Simulates both auditors, the shared location
+     In-memory. Simulates a dynamic auditor roster, the shared location
      register, independent audits, the Records Office store and an
      email/password sign-in without touching the network.
      =========================================================== */
@@ -115,8 +115,9 @@
     var MOCK_PASSWORD = 'bps-demo';
 
     var profiles = {
-      ryan:  { id: 'uuid-ryan',  auditorKey: 'ryan',  displayName: 'Ryan',  email: 'ryanburtonwi@gmail.com' },
-      devin: { id: 'uuid-devin', auditorKey: 'devin', displayName: 'Devin', email: 'devinreiter907@gmail.com' }
+      ryan:  { id: 'uuid-ryan', auditorKey: 'ryan', displayName: 'Ryan', email: 'ryanburtonwi@gmail.com', active: true, role: 'admin', status: 'active' },
+      devin: { id: 'uuid-devin', auditorKey: 'devin', displayName: 'Devin', email: 'devinreiter907@gmail.com', active: true, role: 'auditor', status: 'active' },
+      chris: { id: 'uuid-chris', auditorKey: 'chris', displayName: 'Chris', email: 'chris@example.com', active: true, role: 'auditor', status: 'active' }
     };
 
     var state = {
@@ -140,19 +141,18 @@
 
     function profileByEmail(email) {
       var e = String(email || '').trim().toLowerCase();
-      if (e === profiles.devin.email) return profiles.devin;
-      if (e === profiles.ryan.email) return profiles.ryan;
-      return null;
+      return Object.keys(profiles).map(function (k) { return profiles[k]; })
+        .filter(function (p) { return p.email.toLowerCase() === e; })[0] || null;
     }
 
     function profileById(id) {
-      return profiles.ryan.id === id ? profiles.ryan
-           : profiles.devin.id === id ? profiles.devin
-           : null;
+      return Object.keys(profiles).map(function (k) { return profiles[k]; })
+        .filter(function (p) { return p.id === id; })[0] || null;
     }
 
     function requireSession() {
       if (!state.session) throw fail('unauthenticated', 'Not authenticated.');
+      if (!state.session.profile.active) throw fail('inactive-profile', 'These Bureau credentials have been deactivated.');
       return state.session;
     }
 
@@ -198,6 +198,7 @@
         byEst[k].sort(function (x, y) { return Date.parse(x.createdAt) - Date.parse(y.createdAt); });
       });
       return {
+        profiles: Object.keys(profiles).map(function (k) { return Object.assign({}, profiles[k]); }),
         locations: state.locations.map(function (l) {
           return { id: l.id, name: l.name, nameKey: l.nameKey, group: l.group,
                    isPreset: l.isPreset, archived: l.archived, createdBy: l.createdBy, createdAt: l.createdAt };
@@ -224,7 +225,7 @@
         },
         signIn: function (email, password) {
           var p = profileByEmail(email);
-          if (!p || String(password) !== MOCK_PASSWORD) {
+          if (!p || !p.active || String(password) !== MOCK_PASSWORD) {
             return Promise.reject(fail('bad-credentials', 'Invalid email or password.'));
           }
           state.session = { userId: p.id, email: p.email, profile: p };
@@ -234,12 +235,40 @@
           state.session = null;
           return Promise.resolve();
         },
+        requestPasswordReset: function (email) {
+          return profileByEmail(email) ? Promise.resolve() : Promise.reject(fail('unknown-auditor', 'No Bureau credentials were found.'));
+        },
+        updatePassword: function (password) {
+          requireSession();
+          if (!String(password || '').length) return Promise.reject(fail('invalid-password', 'A password is required.'));
+          return Promise.resolve();
+        },
         /** Test hook: bypass the login form entirely. */
         signInAs: function (auditorKey) {
           var p = profiles[auditorKey];
           if (!p) return Promise.reject(fail('unknown-auditor', 'Unknown mock auditor.'));
           state.session = { userId: p.id, email: p.email, profile: p };
           return Promise.resolve(state.session);
+        }
+      },
+
+      personnel: {
+        list: function () { requireSession(); return Promise.resolve(assemble().profiles); },
+        invite: function (input) {
+          var session = requireSession();
+          if (session.profile.role !== 'admin') return Promise.reject(fail('forbidden', 'Administrator credentials required.'));
+          var key = T.normalizeName(input.displayName).replace(/\s+/g, '-');
+          if (!key) return Promise.reject(fail('invalid-name', 'A display name is required.'));
+          profiles[key] = { id: uid('uuid'), auditorKey: key, displayName: input.displayName,
+            email: String(input.email).toLowerCase(), active: false, role: 'auditor', status: 'invited' };
+          return Promise.resolve(profiles[key]);
+        },
+        resend: function () { var s = requireSession(); return s.profile.role === 'admin' ? Promise.resolve() : Promise.reject(fail('forbidden', 'Administrator credentials required.')); },
+        setActive: function (id, active) {
+          var s = requireSession();
+          if (s.profile.role !== 'admin') return Promise.reject(fail('forbidden', 'Administrator credentials required.'));
+          var p = profileById(id); if (!p) return Promise.reject(fail('not-found', 'Personnel record not found.'));
+          p.active = !!active; p.status = active ? 'active' : 'deactivated'; return Promise.resolve(p);
         }
       },
 
@@ -612,21 +641,24 @@
       throw fail('service-unavailable', 'supabase-js failed to load.');
     }
     var client = lib.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
     function loadProfile(userId) {
-      return client.from('profiles').select('id, auditor_key, display_name')
+      return client.from('profiles').select('id, auditor_key, display_name, email, active, role, invitation_status, created_at')
         .eq('id', userId).single()
         .then(function (res) {
           if (res.error) throw res.error;
-          return { id: res.data.id, auditorKey: res.data.auditor_key, displayName: res.data.display_name };
+          if (res.data.active === false) throw fail('inactive-profile', 'These Bureau credentials have been deactivated.');
+          return { id: res.data.id, auditorKey: res.data.auditor_key, displayName: res.data.display_name,
+            email: res.data.email, active: res.data.active, role: res.data.role,
+            status: res.data.invitation_status, createdAt: res.data.created_at };
         });
     }
 
     function sessionFrom(sbSession) {
       if (!sbSession || !sbSession.user) return null;
-      return loadProfile(sbSession.user.id).then(function (profile) {
+      return client.rpc('activate_invited_profile', {}).then(function () { return loadProfile(sbSession.user.id); }).then(function (profile) {
         return { userId: sbSession.user.id, email: sbSession.user.email, profile: profile };
       });
     }
@@ -699,7 +731,42 @@
           return client.auth.signOut().then(function (res) {
             if (res && res.error) throw res.error;
           });
+        },
+        requestPasswordReset: function (email) {
+          return client.auth.resetPasswordForEmail(String(email).trim(), {
+            redirectTo: window.location.origin + window.location.pathname + '?auth=recovery'
+          }).then(function (res) { if (res.error) throw res.error; });
+        },
+        updatePassword: function (password) {
+          return client.auth.updateUser({ password: String(password) })
+            .then(function (res) { if (res.error) throw res.error; return res.data; });
         }
+      },
+
+      personnel: {
+        list: function () {
+          return client.from('profiles').select('id, auditor_key, display_name, email, active, role, invitation_status, created_at')
+            .order('created_at').then(function (res) {
+              return (unwrap(res) || []).map(function (p) { return { id: p.id, auditorKey: p.auditor_key,
+                displayName: p.display_name, email: p.email, active: p.active, role: p.role,
+                status: p.invitation_status, createdAt: p.created_at }; });
+            });
+        },
+        request: function (action, payload) {
+          return client.auth.getSession().then(function (res) {
+            var token = res.data && res.data.session && res.data.session.access_token;
+            if (!token) throw fail('unauthenticated', 'Not authenticated.');
+            return fetch('/api/personnel', { method: 'POST', headers: {
+              'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token
+            }, body: JSON.stringify(Object.assign({ action: action }, payload || {})) });
+          }).then(function (res) { return res.json().then(function (body) {
+            if (!res.ok) throw fail(body.code || 'personnel-error', body.error || 'Personnel action failed.');
+            return body;
+          }); });
+        },
+        invite: function (input) { return this.request('invite', input); },
+        resend: function (id) { return this.request('resend', { id: id }); },
+        setActive: function (id, active) { return this.request('set-active', { id: id, active: !!active }); }
       },
 
       listRegister: function () {
@@ -708,7 +775,7 @@
             .order('created_at', { ascending: true }),
           client.from('audits').select('*').order('created_at', { ascending: true }),
           client.from('locations').select('*').order('name', { ascending: true }),
-          client.from('profiles').select('id, auditor_key, display_name')
+          client.from('profiles').select('id, auditor_key, display_name, email, active, role, invitation_status, created_at')
         ]).then(function (results) {
           results.forEach(function (r) { if (r.error) guardSchema(r.error); });
           var establishments = results[0].data || [];
@@ -741,6 +808,9 @@
           });
 
           return {
+            profiles: profiles.map(function (p) { return { id: p.id, auditorKey: p.auditor_key,
+              displayName: p.display_name, email: p.email, active: p.active, role: p.role,
+              status: p.invitation_status, createdAt: p.created_at }; }),
             locations: locations,
             establishments: establishments.map(function (e) {
               return {

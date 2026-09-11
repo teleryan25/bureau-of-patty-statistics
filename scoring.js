@@ -22,7 +22,7 @@
    CERTIFICATION CONTRACT
    ----------------------
    Certification describes AUDIT COMPLETENESS, never score quality.
-   An establishment is CERTIFIED once BOTH auditors hold at least one
+   An establishment is CERTIFIED once at least two distinct active auditors hold
    audit that satisfies the CURRENT scoring schema. They need not have
    eaten the same burger, visited the same branch, or filed together.
 
@@ -123,23 +123,43 @@
 
   var SCALE = { min: 0, max: 10, step: 0.1, decimals: 1 };
 
-  /* The two auditors. `key` is the durable application identity. */
-  var AUDITORS = [
-    { key: 'ryan',  name: 'Ryan' },
-    { key: 'devin', name: 'Devin' }
-  ];
+  var CERTIFICATION_MIN_AUDITORS = 2;
+  var auditorDirectory = {};
+  var AUDITOR_KEYS = [];
 
-  var AUDITOR_KEYS = AUDITORS.map(function (a) { return a.key; });
+  function configureAuditors(profiles) {
+    auditorDirectory = {};
+    (profiles || []).forEach(function (p) {
+      var key = p.auditorKey || p.auditor_key || p.key;
+      if (!key) return;
+      auditorDirectory[key] = {
+        id: p.id, key: key, name: p.displayName || p.display_name || p.name || key,
+        email: p.email || null, active: p.active !== false, role: p.role || 'auditor'
+      };
+    });
+    AUDITOR_KEYS.splice.apply(AUDITOR_KEYS, [0, AUDITOR_KEYS.length].concat(Object.keys(auditorDirectory).filter(function (key) {
+      return auditorDirectory[key].active;
+    })));
+    return auditorProfiles();
+  }
+
+  function auditorProfiles(activeOnly) {
+    return Object.keys(auditorDirectory).map(function (key) { return auditorDirectory[key]; })
+      .filter(function (p) { return !activeOnly || p.active; });
+  }
+
+  function auditorKeys(activeOnly) {
+    return auditorProfiles(activeOnly).map(function (p) { return p.key; });
+  }
 
   function auditorName(key) {
-    for (var i = 0; i < AUDITORS.length; i++) {
-      if (AUDITORS[i].key === key) return AUDITORS[i].name;
-    }
+    if (auditorDirectory[key]) return auditorDirectory[key].name;
     return key;
   }
 
+  /* Compatibility helper for intentionally pair-authored legacy findings. */
   function otherAuditor(key) {
-    return key === 'ryan' ? 'devin' : 'ryan';
+    return auditorKeys(true).filter(function (candidate) { return candidate !== key; })[0] || null;
   }
 
   /* ---------- Display formatting ----------
@@ -329,11 +349,11 @@
    * Composite Patty Index, 0.0–100.0, from the two UNROUNDED weighted
    * scores. Null until both sides are complete.
    */
-  function calculateCPI(ryanScores, devinScores) {
-    var ryan = calculateWeightedReviewerScore(ryanScores);
-    var devin = calculateWeightedReviewerScore(devinScores);
-    if (ryan == null || devin == null) return null;
-    return ((ryan + devin) / 2) * 10;
+  function calculateCPI(scoreSets) {
+    var sets = Array.isArray(scoreSets) ? scoreSets : Array.prototype.slice.call(arguments);
+    var values = sets.map(calculateWeightedReviewerScore).filter(function (n) { return n != null; });
+    if (values.length < CERTIFICATION_MIN_AUDITORS) return null;
+    return (values.reduce(function (sum, n) { return sum + n; }, 0) / values.length) * 10;
   }
 
   /** Burger-only weighted score for one current-schema audit/profile, 0–10. */
@@ -345,20 +365,21 @@
   }
 
   /** Auditor-balanced Burger Quality Index, 0–100. */
-  function calculateBQI(ryanScores, devinScores) {
-    var ryan = calculateBurgerQualityScore(ryanScores);
-    var devin = calculateBurgerQualityScore(devinScores);
-    if (ryan == null || devin == null) return null;
-    return ((ryan + devin) / 2) * 10;
+  function calculateBQI(scoreSets) {
+    var sets = Array.isArray(scoreSets) ? scoreSets : Array.prototype.slice.call(arguments);
+    var values = sets.map(calculateBurgerQualityScore).filter(function (n) { return n != null; });
+    if (values.length < CERTIFICATION_MIN_AUDITORS) return null;
+    return (values.reduce(function (sum, n) { return sum + n; }, 0) / values.length) * 10;
   }
 
   /** Descriptive per-category means. Findings only — never feeds CPI. */
-  function calculateCombinedCategoryAverages(ryanScores, devinScores) {
+  function calculateCombinedCategoryAverages(scoreSets) {
+    var sets = Array.isArray(scoreSets) ? scoreSets : Array.prototype.slice.call(arguments);
     var out = {};
     CATEGORY_KEYS.forEach(function (key) {
-      var r = categoryValue(ryanScores, key);
-      var d = categoryValue(devinScores, key);
-      out[key] = (r != null && d != null) ? (r + d) / 2 : null;
+      var values = sets.map(function (scores) { return categoryValue(scores, key); })
+        .filter(function (n) { return n != null; });
+      out[key] = values.length ? values.reduce(function (sum, n) { return sum + n; }, 0) / values.length : null;
     });
     return out;
   }
@@ -418,9 +439,17 @@
     return calculateWeightedReviewerScore(profileOf(establishment, auditorKey));
   }
 
-  /** Certification = both auditors hold a current-schema audit. */
-  function isCertified(establishment) {
-    return AUDITOR_KEYS.every(function (k) { return hasAudit(establishment, k); });
+  function contributingAuditorKeys(establishment, activeKeys) {
+    var allowed = activeKeys && activeKeys.length ? activeKeys : null;
+    var seen = {};
+    compliantAuditsOf(establishment).forEach(function (a) {
+      if (a.auditorKey && (!allowed || allowed.indexOf(a.auditorKey) !== -1)) seen[a.auditorKey] = true;
+    });
+    return Object.keys(seen);
+  }
+
+  function isCertified(establishment, activeKeys) {
+    return contributingAuditorKeys(establishment, activeKeys).length >= CERTIFICATION_MIN_AUDITORS;
   }
 
   /** Total compliant audits on file for this establishment. */
@@ -429,8 +458,12 @@
   }
 
   /** The auditor who still owes a current audit, or null. */
-  function missingAuditor(establishment) {
-    var missing = AUDITOR_KEYS.filter(function (k) { return !hasAudit(establishment, k); });
+  function missingAuditors(establishment, activeKeys) {
+    return (activeKeys || auditorKeys(true)).filter(function (k) { return !hasAudit(establishment, k); });
+  }
+
+  function missingAuditor(establishment, activeKeys) {
+    var missing = missingAuditors(establishment, activeKeys);
     return missing.length === 1 ? missing[0] : null;
   }
 
@@ -440,28 +473,42 @@
     EMPTY:     { key: 'empty',     label: 'No Current Audits' }
   };
 
-  function statusOf(establishment) {
-    var n = AUDITOR_KEYS.filter(function (k) { return hasAudit(establishment, k); }).length;
-    if (n === AUDITOR_KEYS.length) return STATUS.CERTIFIED;
+  function statusOf(establishment, activeKeys) {
+    var n = contributingAuditorKeys(establishment, activeKeys).length;
+    if (n >= CERTIFICATION_MIN_AUDITORS) return STATUS.CERTIFIED;
     if (n === 0) return STATUS.EMPTY;
     return STATUS.PENDING;
   }
 
   /** Official CPI. Null unless certified — a pending establishment has none. */
-  function cpiOf(establishment) {
-    if (!isCertified(establishment)) return null;
-    return calculateCPI(profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
+  function contributionProfiles(establishment, activeKeys) {
+    return contributingAuditorKeys(establishment, activeKeys).map(function (key) { return profileOf(establishment, key); });
   }
 
-  function bqiOf(establishment) {
-    if (!isCertified(establishment)) return null;
-    return calculateBQI(profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
+  function cpiOf(establishment, activeKeys) {
+    if (!isCertified(establishment, activeKeys)) return null;
+    return calculateCPI(contributionProfiles(establishment, activeKeys));
   }
 
-  function combinedOf(establishment) {
-    return calculateCombinedCategoryAverages(
-      profileOf(establishment, 'ryan'), profileOf(establishment, 'devin'));
+  function bqiOf(establishment, activeKeys) {
+    if (!isCertified(establishment, activeKeys)) return null;
+    return calculateBQI(contributionProfiles(establishment, activeKeys));
   }
+
+  function combinedOf(establishment, activeKeys) {
+    return calculateCombinedCategoryAverages(contributionProfiles(establishment, activeKeys));
+  }
+
+  var RANKING_BASES = {
+    overall: { key: 'overall', label: 'Overall', scoreLabel: 'CPI', scale: 100,
+      getScore: function (view) { return view && view.cpi; } },
+    'burger-quality': { key: 'burger-quality', label: 'Burger Quality', scoreLabel: 'BQI', scale: 100,
+      getScore: function (view) { return view && view.bqi; } },
+    fries: { key: 'fries', label: 'Fries', scoreLabel: 'Fries', scale: 10,
+      getScore: function (view) { return view && view.combined && view.combined.fries; } }
+  };
+
+  function rankingBasis(key) { return RANKING_BASES[key] || RANKING_BASES.overall; }
 
   /** Audits on file that predate the current schema and could be updated. */
   function recertifiableAudits(establishment, auditorKey) {
@@ -553,7 +600,12 @@
     BURGER_QUALITY_WEIGHTS: BURGER_QUALITY_WEIGHTS,
     BURGER_QUALITY_WEIGHT_TOTAL: BURGER_QUALITY_WEIGHT_TOTAL,
     SCALE: SCALE,
-    AUDITORS: AUDITORS,
+    RANKING_BASES: RANKING_BASES,
+    rankingBasis: rankingBasis,
+    CERTIFICATION_MIN_AUDITORS: CERTIFICATION_MIN_AUDITORS,
+    configureAuditors: configureAuditors,
+    auditorProfiles: auditorProfiles,
+    auditorKeys: auditorKeys,
     AUDITOR_KEYS: AUDITOR_KEYS,
     auditorName: auditorName,
     otherAuditor: otherAuditor,
@@ -599,7 +651,10 @@
     hasAudit: hasAudit,
     weightedFor: weightedFor,
     isCertified: isCertified,
+    contributingAuditorKeys: contributingAuditorKeys,
+    contributionProfiles: contributionProfiles,
     auditCount: auditCount,
+    missingAuditors: missingAuditors,
     missingAuditor: missingAuditor,
     statusOf: statusOf,
     cpiOf: cpiOf,

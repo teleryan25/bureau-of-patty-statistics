@@ -12,7 +12,7 @@
      data.js            Supabase / mock adapters
 
    THE RANKED ENTITY IS THE ESTABLISHMENT. Every audit belongs to one,
-   and an establishment certifies once both auditors hold a current
+   and an establishment certifies once two distinct active auditors hold current
    audit for it — regardless of branch, burger or date.
    ============================================================= */
 (function () {
@@ -48,7 +48,7 @@
   var state = {
     adapter: null,
     session: null,
-    me: null,              /* 'ryan' | 'devin' */
+    me: null,
     register: { establishments: [], locations: [] },
     metrics: null,         /* filtered — drives Rankings */
     globalMetrics: null,   /* unfiltered — drives everything else */
@@ -112,7 +112,7 @@
   }
 
   function hasAuditorIdentity() {
-    return S.AUDITOR_KEYS.indexOf(state.me) !== -1;
+    return !!(state.session && state.session.profile && state.session.profile.active !== false && state.me);
   }
 
   function hasAuthenticatedState() {
@@ -160,7 +160,8 @@
       footerSessionName: $('footer-session-name'),
       signout: $('signout-btn'),
       views: {
-        auth: $('view-auth'), rankings: $('view-rankings'), pending: $('view-pending'),
+        auth: $('view-auth'), rankings: $('view-rankings'), pending: $('view-pending'), coverage: $('view-coverage'),
+        personnel: $('view-personnel'),
         evaluate: $('view-evaluate'), record: $('view-record'), records: $('view-records'),
         insights: $('view-insights')
       },
@@ -168,10 +169,13 @@
       /* auth */
       authForm: $('auth-login-form'), authEmail: $('auth-email'), authPassword: $('auth-password'),
       authErr: $('auth-error'), authBtn: $('auth-login-btn'), authModeNote: $('auth-mode-note'),
+      forgotPassword: $('forgot-password-btn'), passwordForm: $('password-form'),
+      newPassword: $('new-password'), passwordError: $('password-error'),
       /* rankings */
       rankingsList: $('rankings-list'), rankingsEmpty: $('rankings-empty'),
       rankingsEmptyTitle: $('rankings-empty-title'), rankingsEmptyText: $('rankings-empty-text'),
       statSpecimens: qs('[data-stat="specimens"]'), statMean: qs('[data-stat="mean"]'),
+      statMeanLabel: $('stat-mean-label'),
       statAudits: qs('[data-stat="audits"]'), statPending: qs('[data-stat="pending"]'),
       filterLocation: $('filter-location'), filterCategory: $('filter-category'),
       rankingBasis: $('ranking-basis'), rankingsMeta: $('rankings-meta'),
@@ -225,6 +229,10 @@
       locationsNote: $('locations-note'),
       disasterStage: $('bureau-event-stage')
     };
+    el.coverageList = $('coverage-list');
+    el.inviteForm = $('invite-form'); el.inviteName = $('invite-name'); el.inviteEmail = $('invite-email');
+    el.inviteError = $('invite-error'); el.personnelAdminList = $('personnel-admin-list');
+    el.changePassword = $('change-password-btn');
   }
 
   /* =============================================================
@@ -267,6 +275,24 @@
       });
     });
 
+    el.forgotPassword.addEventListener('click', function () {
+      var email = el.authEmail.value.trim();
+      if (!email) { el.authErr.textContent = 'Enter your registered email first.'; el.authErr.hidden = false; return; }
+      state.adapter.auth.requestPasswordReset(email).then(function () {
+        toast('Password recovery instructions have been dispatched.');
+      }).catch(function (err) { el.authErr.textContent = err.message || 'Recovery could not be started.'; el.authErr.hidden = false; });
+    });
+
+    el.passwordForm.addEventListener('submit', function (e) {
+      e.preventDefault(); el.passwordError.hidden = true;
+      state.adapter.auth.updatePassword(el.newPassword.value).then(function () {
+        el.newPassword.value = ''; el.passwordForm.hidden = true; el.authForm.hidden = false;
+        toast('Bureau credentials established.');
+        window.history.replaceState(null, '', window.location.pathname + '#rankings');
+        if (state.session) setView('rankings', { focus: true });
+      }).catch(function (err) { el.passwordError.textContent = err.message || 'Password update failed.'; el.passwordError.hidden = false; });
+    });
+
     el.signout.addEventListener('click', function () {
       el.signout.disabled = true;
       state.adapter.auth.signOut().then(function () {
@@ -286,7 +312,7 @@
   }
 
   function onSignedIn(session) {
-    if (!session || !session.profile || S.AUDITOR_KEYS.indexOf(session.profile.auditorKey) === -1) {
+    if (!session || !session.profile || !session.profile.auditorKey || session.profile.active === false) {
       return Promise.reject(new Error('This account is not mapped to a Bureau auditor profile.'));
     }
     state.authEpoch += 1;
@@ -299,6 +325,12 @@
     el.evalAuditorName.textContent = session.profile.displayName;
     return refresh().then(function (loaded) {
       if (!loaded) return;
+      var authMode = new URLSearchParams(window.location.search).get('auth');
+      if (authMode === 'invite' || authMode === 'recovery') {
+        el.authForm.hidden = true; el.passwordForm.hidden = false;
+        setView('auth', { focus: true, hash: 'password' });
+        return;
+      }
       var hash = window.location.hash.slice(1);
       routeFromHash(hash && hash !== 'auth' ? hash : 'rankings');
     });
@@ -327,6 +359,7 @@
     return state.adapter.listRegister().then(function (register) {
       if (!isCurrentSession(token)) return false;
       state.register = register;
+      S.configureAuditors(register.profiles || [state.session.profile]);
       recompute();
       renderAll();
       return syncRecords(token, options).then(function () { return true; });
@@ -347,6 +380,8 @@
     renderStats();
     renderRankings();
     renderPending();
+    renderCoverage();
+    renderPersonnel();
     renderEvalPending();
     renderRecordsOffice();
     updateBadge();
@@ -765,7 +800,7 @@
   function applyFilterChange() {
     state.filter.locationId = el.filterLocation.value || null;
     state.filter.category = el.filterCategory.value || null;
-    state.filter.basis = el.rankingBasis.value === 'burger-quality' ? 'burger-quality' : 'overall';
+    state.filter.basis = S.RANKING_BASES[el.rankingBasis.value] ? el.rankingBasis.value : 'overall';
     recompute();
     renderAll();
   }
@@ -846,9 +881,9 @@
   function renderStats() {
     var m = state.metrics;
     el.statSpecimens.textContent = String(m.counts.certified);
-    var values = state.filter.basis === 'burger-quality'
-      ? m.ranked.map(function (v) { return S.calculateBQI(v.scores.ryan, v.scores.devin); })
-      : m.ranked.map(function (v) { return v.cpi; });
+    var basis = S.rankingBasis(state.filter.basis);
+    el.statMeanLabel.textContent = basis.key === 'fries' ? 'Mean Fries' : 'Mean Index';
+    var values = m.ranked.map(basis.getScore).filter(function (v) { return v != null; });
     var mean = values.length ? values.reduce(function (sum, value) { return sum + value; }, 0) / values.length : null;
     el.statMean.textContent = S.formatCPI(mean);
     el.statAudits.textContent = String(m.counts.audits);
@@ -856,21 +891,19 @@
   }
 
   function renderRankings() {
-    var burgerQuality = state.filter.basis === 'burger-quality';
+    var basis = S.rankingBasis(state.filter.basis);
     var ranked = state.metrics.ranked.slice();
-    if (burgerQuality) ranked.sort(function (a, b) {
-      return S.calculateBQI(b.scores.ryan, b.scores.devin) - S.calculateBQI(a.scores.ryan, a.scores.devin);
-    });
+    ranked.sort(function (a, b) { return basis.getScore(b) - basis.getScore(a); });
     el.rankingsMeta.textContent = 'Certified establishments only, sorted by ' +
-      (burgerQuality ? 'Burger Quality Index' : 'Composite Patty Index');
+      (basis.key === 'overall' ? 'Composite Patty Index' : basis.label + (basis.scale === 100 ? ' Index' : ' score'));
     el.rankingsList.replaceChildren();
     if (ranked.length) {
       var frag = document.createDocumentFragment();
       ranked.forEach(function (v, index) {
         var rowView = Object.assign({}, v, { rank: index + 1 });
-        frag.appendChild(buildEstablishmentRow(rowView, burgerQuality ? {
-          score: S.calculateBQI(v.scores.ryan, v.scores.devin), scoreLabel: 'BQI'
-        } : null));
+        frag.appendChild(buildEstablishmentRow(rowView, basis.key === 'overall' ? null : {
+          score: basis.getScore(v), scoreLabel: basis.scoreLabel
+        }));
       });
       el.rankingsList.appendChild(frag);
     }
@@ -881,14 +914,12 @@
       if (state.filter.locationId || state.filter.category) {
         el.rankingsEmptyTitle.textContent = 'No certified establishments under this filter.';
         el.rankingsEmptyText.textContent = state.filter.locationId
-          ? 'Within a location filter, an establishment certifies only when both auditors have audited it ' +
+          ? 'Within a location filter, an establishment certifies only when two distinct active auditors have audited it ' +
             'there. Clear the filter to see the register as a whole.'
           : 'No establishment of this class has been certified yet.';
       } else {
         el.rankingsEmptyTitle.textContent = 'No certified establishments.';
-        el.rankingsEmptyText.textContent = 'An establishment enters the Official Rankings once both auditors ' +
-          'hold at least one current-schema audit for it. They need not have eaten the same burger, ' +
-          'or visited the same branch.';
+        el.rankingsEmptyText.textContent = 'An establishment enters the Official Rankings once two distinct active auditors hold current-schema audits for it.';
       }
     }
   }
@@ -906,9 +937,8 @@
       el.pendingEmpty.hidden = true;
       return;
     }
-    var mine = m.pendingFor[state.me];
-    var peerKey = S.otherAuditor(state.me);
-    var theirs = m.pendingFor[peerKey];
+    var mine = m.pendingFor[state.me] || [];
+    var theirs = m.pending.filter(function (v) { return v.contributorKeys.indexOf(state.me) !== -1; });
     var recert = m.views.filter(function (v) { return v.awaitingRecertification; });
 
     el.pendingRecert.replaceChildren();
@@ -944,11 +974,48 @@
     el.pendingTheirs.replaceChildren();
     theirs.forEach(function (v) { el.pendingTheirs.appendChild(buildEstablishmentRow(v, { rank: false })); });
     el.pendingTheirsWrap.hidden = theirs.length === 0;
-    el.pendingTheirsTitle.textContent = 'Awaiting ' + S.auditorName(peerKey);
-    el.pendingTheirsMeta.textContent = 'You have filed. ' + S.auditorName(peerKey) +
-      ' has not. No action is required from you.';
+    el.pendingTheirsTitle.textContent = 'Awaiting a Second Auditor';
+    el.pendingTheirsMeta.textContent = 'You have filed. One more distinct active auditor is required; no additional filing is required from you.';
 
     el.pendingEmpty.hidden = (mine.length + theirs.length + recert.length) > 0;
+  }
+
+  function renderCoverage() {
+    if (!state.globalMetrics) return;
+    el.coverageList.replaceChildren();
+    state.globalMetrics.auditorKeys.forEach(function (key) {
+      var c = state.globalMetrics.coverage[key];
+      var section = node('section', 'exrec');
+      section.appendChild(node('h2', 'exrec__name', S.auditorName(key)));
+      section.appendChild(node('p', 'section__meta', c.audited + ' of ' + c.total + ' establishments examined · ' + c.remaining + ' remaining'));
+      if (c.outstanding.length) {
+        var list = node('ul', 'rankings');
+        c.outstanding.forEach(function (v) { list.appendChild(buildEstablishmentRow(v, { rank: false, status: true,
+          action: key === state.me ? { label: 'Begin audit', onClick: function () { startForEstablishment(v.id); } } : null })); });
+        section.appendChild(list);
+      } else section.appendChild(node('p', 'exrec__missing', 'Field work complete. Paperwork remains inevitable.'));
+      el.coverageList.appendChild(section);
+    });
+  }
+
+  function renderPersonnel() {
+    if (!state.session || !state.register.profiles) return;
+    var admin = state.session.profile.role === 'admin';
+    el.inviteForm.hidden = !admin; el.personnelAdminList.replaceChildren();
+    state.register.profiles.forEach(function (p) {
+      var card = node('section', 'exrec');
+      card.appendChild(node('h3', 'exrec__name', p.displayName));
+      card.appendChild(node('p', 'section__meta', (p.status === 'invited' ? 'Invitation Pending' : (p.active ? 'Active' : 'Deactivated')) +
+        (p.role === 'admin' ? ' · Administrator' : '') + (p.email ? ' · ' + p.email : '')));
+      if (admin && p.id !== state.session.userId) {
+        var action = node('button', 'btn btn--outline btn--small', p.status === 'invited' ? 'Resend Invite' : (p.active ? 'Deactivate' : 'Reactivate'));
+        action.type = 'button'; action.addEventListener('click', function () {
+          var promise = p.status === 'invited' ? state.adapter.personnel.resend(p.id) : state.adapter.personnel.setActive(p.id, !p.active);
+          promise.then(function () { toast('Personnel register updated.'); return refresh(); }).catch(function (err) { toast(err.message || 'Personnel action failed.'); });
+        }); card.appendChild(action);
+      }
+      el.personnelAdminList.appendChild(card);
+    });
   }
 
   function renderEvalPending() {
@@ -1088,7 +1155,7 @@
     el.identityNew.hidden = false;
     el.identityReview.hidden = true;
     el.evalTitle.innerHTML = 'File an <span class="accent-rule">Audit</span>';
-    el.evalSub.textContent = 'You file only your own audit. Your peer files theirs independently, at ' +
+    el.evalSub.textContent = 'You file only your own audit. Fellow auditors file independently, at ' +
       'whichever branch and on whichever burger they choose.';
     el.evalFormLabel.textContent = 'Form BPS-2';
     el.tallyLabel.textContent = 'Your Weighted Score';
@@ -1143,7 +1210,7 @@
     el.reviewNote.textContent = missing.length
       ? 'This audit predates the current scoring schema. Supply ' + missing.join(' and ') +
         ' to return it to service. Its original scores are unchanged.'
-      : 'Amending your own filed audit. Your peer\'s scores are untouched.';
+      : 'Amending your own filed audit. Other auditors\' scores are untouched.';
 
     el.evalTitle.innerHTML = missing.length
       ? 'Bring Audit <span class="accent-rule">Up to Schema</span>'
@@ -1508,19 +1575,18 @@
     } else {
       el.recordFigures.appendChild(figure('Status', 'Pending Peer Review', true));
       el.recordFigures.appendChild(figure('Awaiting',
-        view.missing ? S.auditorName(view.missing) : 'Both auditors'));
+        Math.max(0, S.CERTIFICATION_MIN_AUDITORS - view.contributorCount) + ' additional distinct auditor'));
     }
 
     el.recordCta.replaceChildren();
-    if (!certified && (view.missing === state.me || view.missing === null)) {
+    if (!certified && view.contributorKeys.indexOf(state.me) === -1) {
       var cta = node('button', 'btn btn--primary btn--block', 'File my audit here');
       cta.type = 'button';
       cta.addEventListener('click', function () { startForEstablishment(establishment.id); });
       el.recordCta.appendChild(cta);
     } else if (!certified) {
       el.recordCta.appendChild(node('p', 'record__await',
-        'This establishment has no official Composite Patty Index or rank until ' +
-        S.auditorName(view.missing) + ' files a current audit.'));
+        'This establishment has no official Composite Patty Index or rank until a second distinct active auditor files a current audit.'));
     }
 
     /* Shared particulars */
@@ -1530,11 +1596,11 @@
     el.mergeWarning.hidden = true;
 
     var frag = document.createDocumentFragment();
-    S.AUDITOR_KEYS.forEach(function (k) { frag.appendChild(buildRecordExaminer(k, establishment, view)); });
+    state.globalMetrics.auditorKeys.forEach(function (k) { frag.appendChild(buildRecordExaminer(k, establishment, view)); });
     el.recordExaminers.replaceChildren(frag);
 
     if (certified) {
-      var combined = S.combinedOf(establishment);
+      var combined = view.combined;
       var list = node('dl', 'catlist catlist--findings');
       CATEGORIES.forEach(function (c) {
         var row = node('div', 'catlist__row');
@@ -1650,11 +1716,11 @@
     el.insightsSummary.replaceChildren();
     el.insightsSummary.appendChild(summaryTile('Certified', String(m.counts.certified)));
     el.insightsSummary.appendChild(summaryTile('Pending', String(m.counts.pending)));
-    el.insightsSummary.appendChild(summaryTile('Ryan Mean', S.formatScore(m.auditors.ryan.weighted.mean)));
-    el.insightsSummary.appendChild(summaryTile('Devin Mean', S.formatScore(m.auditors.devin.weighted.mean)));
+    el.insightsSummary.appendChild(summaryTile('Auditors', String(m.auditorKeys.length)));
+    el.insightsSummary.appendChild(summaryTile('Audits', String(m.counts.audits)));
 
     el.personnel.replaceChildren();
-    S.AUDITOR_KEYS.forEach(function (k) {
+    m.auditorKeys.forEach(function (k) {
       var a = m.auditors[k];
       var card = node('section', 'exrec');
       var head = node('div', 'exrec__head');
@@ -1696,10 +1762,16 @@
     renderFindings();
 
     var p = m.paired;
-    if (p.n >= 2) {
+    if (m.ranked.length >= 2) {
       el.disputes.replaceChildren();
       var cols = node('div', 'disputes');
-      [['Official', p.official], ['Ryan', p.ryanOrder], ['Devin', p.devinOrder]].forEach(function (pair) {
+      var orders = [['Official', m.ranked]];
+      m.auditorKeys.forEach(function (key) {
+        var personal = m.ranked.filter(function (v) { return v.weighted[key] != null; }).slice()
+          .sort(function (a, b) { return b.weighted[key] - a.weighted[key]; });
+        if (personal.length) orders.push([S.auditorName(key), personal]);
+      });
+      orders.forEach(function (pair) {
         var col = node('div', 'disputes__col');
         col.appendChild(node('p', 'disputes__title', pair[0]));
         var ol = node('ol', 'disputes__list');
@@ -1718,29 +1790,31 @@
       el.disputesWrap.hidden = true;
     }
 
-    if (p.n >= 1) {
+    if (m.ranked.length >= 1) {
       var wrap = node('div', 'diffs');
       CATEGORIES.forEach(function (c) {
-        var b = p.byCategory[c.key];
         var row = node('div', 'diff');
         var head = node('div', 'diff__head');
         head.appendChild(node('span', 'diff__label', c.label));
-        var delta = b.delta;
-        var lead = delta === 0 ? 'level' : (delta > 0 ? 'Ryan +' + S.roundTo(Math.abs(delta), 2).toFixed(2)
-                                                      : 'Devin +' + S.roundTo(Math.abs(delta), 2).toFixed(2));
-        head.appendChild(node('span', 'diff__delta', lead));
+        var means = m.auditorKeys.map(function (key) {
+          var values = m.ranked.map(function (v) { return S.categoryValue(v.scores[key], c.key); })
+            .filter(function (n) { return n != null; });
+          return { key: key, value: values.length ? values.reduce(function (sum, n) { return sum + n; }, 0) / values.length : null };
+        }).filter(function (item) { return item.value != null; });
+        var high = means.slice().sort(function (a, b) { return b.value - a.value; })[0];
+        head.appendChild(node('span', 'diff__delta', high ? S.auditorName(high.key) + ' leads' : 'No filings'));
         row.appendChild(head);
 
         var bars = node('div', 'diff__bars');
-        [['ryan', b.ryanMean], ['devin', b.devinMean]].forEach(function (pairv) {
+        means.forEach(function (pairv) {
           var line = node('div', 'diff__line');
-          line.appendChild(node('span', 'diff__who', S.auditorName(pairv[0])));
+          line.appendChild(node('span', 'diff__who', S.auditorName(pairv.key)));
           var track = node('span', 'diff__track');
-          var fill = node('span', 'diff__fill diff__fill--' + pairv[0]);
-          fill.style.width = ((Number(pairv[1]) / SCALE.max) * 100) + '%';
+          var fill = node('span', 'diff__fill auditor--' + pairv.key);
+          fill.style.width = ((Number(pairv.value) / SCALE.max) * 100) + '%';
           track.appendChild(fill);
           line.appendChild(track);
-          line.appendChild(node('span', 'diff__num', S.formatScore(pairv[1])));
+          line.appendChild(node('span', 'diff__num', S.formatScore(pairv.value)));
           bars.appendChild(line);
         });
         row.appendChild(bars);
@@ -1959,6 +2033,15 @@
       var on = RO.setSoundEnabled(!RO.soundEnabled());
       renderRecordsOffice();
       if (on) RO.playSting();
+    });
+    el.inviteForm.addEventListener('submit', function (e) {
+      e.preventDefault(); el.inviteError.hidden = true;
+      state.adapter.personnel.invite({ displayName: el.inviteName.value.trim(), email: el.inviteEmail.value.trim() })
+        .then(function () { el.inviteForm.reset(); toast('Bureau appointment dispatched.'); return refresh(); })
+        .catch(function (err) { el.inviteError.textContent = err.message || 'Appointment could not be dispatched.'; el.inviteError.hidden = false; });
+    });
+    el.changePassword.addEventListener('click', function () {
+      el.authForm.hidden = true; el.passwordForm.hidden = false; setView('auth', { focus: true, hash: 'password' });
     });
   }
 

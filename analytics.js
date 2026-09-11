@@ -143,9 +143,7 @@
       createdTs: ts(audit.createdAt),
       updatedAt: audit.updatedAt,
       compliant: true,
-      scores: { ryan: null, devin: null },
-      weighted: { ryan: null, devin: null },
-      spread: { ryan: null, devin: null },
+      scores: {}, weighted: {}, spread: {},
       best: {}, worst: {},
       certified: false, cpi: null, rank: null,
       combined: {}, deltas: {}, absDeltas: {}
@@ -169,15 +167,23 @@
     var compliant = all.filter(S.auditIsCompliant);
     var legacy = all.filter(function (a) { return !S.auditIsCompliant(a); });
 
-    var byAuditor = { ryan: [], devin: [] };
-    var legacyBy = { ryan: [], devin: [] };
-    compliant.forEach(function (a) { if (byAuditor[a.auditorKey]) byAuditor[a.auditorKey].push(a); });
-    legacy.forEach(function (a) { if (legacyBy[a.auditorKey]) legacyBy[a.auditorKey].push(a); });
-
-    var ryan = S.meanScoreSet(byAuditor.ryan);
-    var devin = S.meanScoreSet(byAuditor.devin);
-    var hasR = !!ryan, hasD = !!devin;
-    var certified = hasR && hasD;
+    var activeKeys = S.auditorKeys(true);
+    var byAuditor = {}, legacyBy = {}, scores = {}, weighted = {}, auditCounts = { total: compliant.length };
+    var legacyCounts = { total: legacy.length };
+    activeKeys.forEach(function (key) { byAuditor[key] = []; legacyBy[key] = []; });
+    compliant.forEach(function (a) {
+      if (S.auditorProfiles().length && activeKeys.indexOf(a.auditorKey) === -1) return;
+      (byAuditor[a.auditorKey] = byAuditor[a.auditorKey] || []).push(a);
+    });
+    legacy.forEach(function (a) { (legacyBy[a.auditorKey] = legacyBy[a.auditorKey] || []).push(a); });
+    var contributorKeys = Object.keys(byAuditor).filter(function (key) { return byAuditor[key].length; });
+    Object.keys(byAuditor).forEach(function (key) {
+      scores[key] = S.meanScoreSet(byAuditor[key]);
+      weighted[key] = scores[key] ? S.calculateWeightedReviewerScore(scores[key]) : null;
+      auditCounts[key] = byAuditor[key].length;
+    });
+    Object.keys(legacyBy).forEach(function (key) { legacyCounts[key] = legacyBy[key].length; });
+    var certified = contributorKeys.length >= S.CERTIFICATION_MIN_AUDITORS;
 
     var firstAudit = all.slice().sort(function (a, b) { return ts(a.createdAt) - ts(b.createdAt); })[0];
     var createdAt = establishment.createdAt || (firstAudit && firstAudit.createdAt);
@@ -203,39 +209,40 @@
       legacyAudits: legacy,
       auditsBy: byAuditor,
       legacyBy: legacyBy,
-      auditCounts: { ryan: byAuditor.ryan.length, devin: byAuditor.devin.length, total: compliant.length },
-      legacyCounts: { ryan: legacyBy.ryan.length, devin: legacyBy.devin.length, total: legacy.length },
+      auditCounts: auditCounts, legacyCounts: legacyCounts,
+      contributorKeys: contributorKeys, contributorCount: contributorKeys.length,
       visits: compliant.length,
-      revisited: byAuditor.ryan.length > 1 || byAuditor.devin.length > 1,
+      revisited: contributorKeys.some(function (key) { return byAuditor[key].length > 1; }),
       locations: unique(compliant.map(function (a) { return a.locationName; })),
       locationIds: unique(compliant.map(function (a) { return a.locationId; })),
       burgers: unique(compliant.map(function (a) { return a.burger; })),
       certified: certified,
-      status: (hasR && hasD) ? 'certified' : ((!hasR && !hasD) ? 'empty' : 'pending'),
-      missing: (hasR && !hasD) ? 'devin' : ((!hasR && hasD) ? 'ryan' : null),
-      filedBy: hasR && !hasD ? 'ryan' : (!hasR && hasD ? 'devin' : null),
+      status: certified ? 'certified' : (contributorKeys.length ? 'pending' : 'empty'),
+      missingAuditors: activeKeys.filter(function (key) { return contributorKeys.indexOf(key) === -1; }),
+      missing: activeKeys.filter(function (key) { return contributorKeys.indexOf(key) === -1; })[0] || null,
+      filedBy: contributorKeys.length === 1 ? contributorKeys[0] : null,
       /* Legacy filings on record that could be brought up to schema. */
       awaitingRecertification: legacy.length > 0,
-      scores: { ryan: ryan, devin: devin },
-      weighted: {
-        ryan: hasR ? S.calculateWeightedReviewerScore(ryan) : null,
-        devin: hasD ? S.calculateWeightedReviewerScore(devin) : null
-      },
+      scores: scores, weighted: weighted,
       cpi: null,
+      bqi: null,
       rank: null,
       combined: {}, deltas: {}, absDeltas: {},
       meanAbsDelta: null, maxAbsDelta: null, maxAbsDeltaCat: null,
       weightedDelta: null, higher: null, sweep: null,
       exactCells: 0,
-      spread: { ryan: null, devin: null },
+      spread: {},
       best: {}, worst: {},
       turnaroundMs: null, pendingAgeMs: null,
       sameBurger: false
     };
 
-    if (certified) v.cpi = ((v.weighted.ryan + v.weighted.devin) / 2) * 10;
+    if (certified) v.cpi = mean(contributorKeys.map(function (key) { return v.weighted[key]; })) * 10;
+    if (certified) v.bqi = mean(contributorKeys.map(function (key) {
+      return S.calculateBurgerQualityScore(scores[key]);
+    })) * 10;
 
-    ['ryan', 'devin'].forEach(function (k) {
+    contributorKeys.forEach(function (k) {
       var a = v.scores[k];
       if (!a) return;
       var vals = KEYS.map(function (key) { return S.categoryValue(a, key); });
@@ -248,24 +255,23 @@
 
     if (certified) {
       var absList = [];
-      var sweepR = true, sweepD = true;
       KEYS.forEach(function (key) {
-        var r = S.categoryValue(ryan, key), d = S.categoryValue(devin, key);
-        v.combined[key] = (r + d) / 2;
-        v.deltas[key] = r - d;
-        v.absDeltas[key] = Math.abs(r - d);
-        absList.push(Math.abs(r - d));
-        if (r === d) v.exactCells += 1;
-        if (!(r > d)) sweepR = false;
-        if (!(d > r)) sweepD = false;
+        var values = contributorKeys.map(function (k) { return S.categoryValue(scores[k], key); });
+        v.combined[key] = mean(values);
+        v.absDeltas[key] = range(values);
+        v.deltas[key] = scores.ryan && scores.devin
+          ? S.categoryValue(scores.ryan, key) - S.categoryValue(scores.devin, key) : 0;
+        absList.push(v.absDeltas[key]);
+        if (v.absDeltas[key] === 0) v.exactCells += 1;
       });
       v.meanAbsDelta = mean(absList);
       var worstCell = extremeBy(KEYS, function (key) { return v.absDeltas[key]; }, 'max');
       v.maxAbsDelta = worstCell && worstCell.value;
       v.maxAbsDeltaCat = worstCell && worstCell.item;
-      v.weightedDelta = v.weighted.ryan - v.weighted.devin;
-      v.higher = v.weightedDelta > 0 ? 'ryan' : (v.weightedDelta < 0 ? 'devin' : 'tie');
-      v.sweep = sweepR ? 'ryan' : (sweepD ? 'devin' : null);
+      if (v.weighted.ryan != null && v.weighted.devin != null) {
+        v.weightedDelta = v.weighted.ryan - v.weighted.devin;
+        v.higher = v.weightedDelta > 0 ? 'ryan' : (v.weightedDelta < 0 ? 'devin' : 'tie');
+      }
 
       var cHi = extremeBy(KEYS, function (key) { return v.combined[key]; }, 'max');
       var cLo = extremeBy(KEYS, function (key) { return v.combined[key]; }, 'min');
@@ -276,18 +282,17 @@
       /* Turnaround = the wait between the two auditors' FIRST current
          filings here. Different branches and different burgers are fine;
          certification is what is being timed. */
-      var tr = ts(byAuditor.ryan[0].createdAt);
-      var td = ts(byAuditor.devin[0].createdAt);
-      if (isFinite(tr) && isFinite(td)) v.turnaroundMs = Math.abs(tr - td);
+      var firstTimes = contributorKeys.map(function (k) { return ts(byAuditor[k][0].createdAt); }).sort();
+      if (firstTimes.length >= 2) v.turnaroundMs = firstTimes[1] - firstTimes[0];
 
       /* A genuine same-burger comparison, when one exists. */
-      var ryanBurgers = byAuditor.ryan.map(function (a) { return normalizeName(a.burger); });
-      v.sameBurger = byAuditor.devin.some(function (a) {
-        return ryanBurgers.indexOf(normalizeName(a.burger)) !== -1;
-      });
-      v.sameLocation = byAuditor.devin.some(function (a) {
-        return byAuditor.ryan.some(function (b) { return b.locationId === a.locationId; });
-      });
+      var burgerOwners = {}, locationOwners = {};
+      contributorKeys.forEach(function (k) { byAuditor[k].forEach(function (a) {
+        (burgerOwners[normalizeName(a.burger)] = burgerOwners[normalizeName(a.burger)] || {})[k] = true;
+        (locationOwners[a.locationId] = locationOwners[a.locationId] || {})[k] = true;
+      }); });
+      v.sameBurger = Object.keys(burgerOwners).some(function (b) { return Object.keys(burgerOwners[b]).length >= 2; });
+      v.sameLocation = Object.keys(locationOwners).some(function (l) { return Object.keys(locationOwners[l]).length >= 2; });
     } else if (v.filedBy) {
       var filedAt = ts(byAuditor[v.filedBy][0].createdAt);
       if (isFinite(filedAt) && filedAt) v.pendingAgeMs = Date.now() - filedAt;
@@ -605,11 +610,11 @@
         if (!a.locationId) return;
         var s = stats[a.locationId] = stats[a.locationId] || {
           id: a.locationId, name: a.locationName, audits: 0,
-          establishments: {}, byAuditor: { ryan: 0, devin: 0 }
+          establishments: {}, byAuditor: {}
         };
         s.audits += 1;
         s.establishments[v.id] = true;
-        if (s.byAuditor[a.auditorKey] != null) s.byAuditor[a.auditorKey] += 1;
+        s.byAuditor[a.auditorKey] = (s.byAuditor[a.auditorKey] || 0) + 1;
       });
     });
     return (locations || []).map(function (l) {
@@ -619,8 +624,9 @@
         isPreset: l.isPreset, archived: l.archived, createdBy: l.createdBy,
         audits: s ? s.audits : 0,
         establishments: s ? Object.keys(s.establishments).length : 0,
-        ryanAudits: s ? s.byAuditor.ryan : 0,
-        devinAudits: s ? s.byAuditor.devin : 0,
+        byAuditor: s ? s.byAuditor : {},
+        ryanAudits: s ? (s.byAuditor.ryan || 0) : 0,
+        devinAudits: s ? (s.byAuditor.devin || 0) : 0,
         inUse: !!s
       };
     });
@@ -663,6 +669,9 @@
     var reg = Array.isArray(register) ? { establishments: register, locations: [] } : (register || {});
     var allEstablishments = reg.establishments || [];
     var locations = reg.locations || [];
+    var profiles = reg.profiles || S.auditorProfiles();
+    S.configureAuditors(profiles);
+    var auditorKeys = S.auditorKeys(true);
 
     var filtered = applyFilter(allEstablishments, options);
 
@@ -687,18 +696,24 @@
     var legacyAudits = [];
     views.forEach(function (v) { v.legacyAudits.forEach(function (a) { legacyAudits.push({ audit: a, view: v }); }); });
 
-    var auditors = {
-      ryan: buildAuditor('ryan', auditViews, views),
-      devin: buildAuditor('devin', auditViews, views)
-    };
-    var paired = buildPaired(certified);
+    var auditors = {};
+    auditorKeys.forEach(function (key) { auditors[key] = buildAuditor(key, auditViews, views); });
+    /* Historical Ryan/Devin comparison findings remain available when both
+       participate; official certification and aggregates do not depend on them. */
+    var legacyPair = certified.filter(function (v) { return v.weighted.ryan != null && v.weighted.devin != null; });
+    var paired = buildPaired(legacyPair);
     var restaurants = buildEstablishmentStandings(certified);
     var repeatRestaurants = restaurants.filter(function (r) { return r.revisited; });
 
-    var pendingFor = {
-      ryan: pending.filter(function (v) { return v.missing === 'ryan'; }),
-      devin: pending.filter(function (v) { return v.missing === 'devin'; })
-    };
+    var pendingFor = {}, coverage = {};
+    auditorKeys.forEach(function (key) {
+      pendingFor[key] = pending.filter(function (v) { return v.contributorKeys.indexOf(key) === -1; });
+      var outstanding = unfilteredViews.filter(function (v) { return v.contributorKeys.indexOf(key) === -1; });
+      coverage[key] = {
+        auditorKey: key, audited: unfilteredViews.length - outstanding.length,
+        total: unfilteredViews.length, remaining: outstanding.length, outstanding: outstanding
+      };
+    });
 
     var oldestPending = extremeBy(pending, function (v) { return v.pendingAgeMs; }, 'max');
 
@@ -745,9 +760,10 @@
         certified: certified.length,
         pending: pending.length,
         empty: views.filter(function (v) { return v.status === 'empty'; }).length,
-        audits: auditors.ryan.n + auditors.devin.n,
-        ryanAudits: auditors.ryan.n,
-        devinAudits: auditors.devin.n,
+        audits: auditorKeys.reduce(function (n, key) { return n + auditors[key].n; }, 0),
+        ryanAudits: auditors.ryan ? auditors.ryan.n : 0,
+        devinAudits: auditors.devin ? auditors.devin.n : 0,
+        auditors: auditorKeys.length,
         legacyAudits: legacyAudits.length,
         awaitingRecertification: views.filter(function (v) { return v.awaitingRecertification; }).length,
         restaurants: restaurants.length,
@@ -770,6 +786,9 @@
       auditViews: auditViews,
       legacyAudits: legacyAudits,
       auditors: auditors,
+      auditorKeys: auditorKeys,
+      profiles: profiles,
+      coverage: coverage,
       paired: paired,
       restaurants: restaurants,
       repeatRestaurants: repeatRestaurants,

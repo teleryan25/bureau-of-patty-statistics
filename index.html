@@ -48,11 +48,13 @@
 
   <!-- Five workflows. Equal file-tab cells, no hamburger, no native tab bar. -->
   <nav class="shell viewnav" aria-label="Primary">
-    <div class="viewnav__track viewnav__track--five" role="tablist">
+    <div class="viewnav__track viewnav__track--six" role="tablist">
       <button class="viewnav__btn" id="tab-rankings" type="button" role="tab" aria-selected="true"
               aria-controls="view-rankings" data-view="rankings">Rankings</button>
       <button class="viewnav__btn" id="tab-pending" type="button" role="tab" aria-selected="false"
               aria-controls="view-pending" data-view="pending">Pending<span class="viewnav__badge" id="pending-badge" hidden>0</span></button>
+      <button class="viewnav__btn" id="tab-coverage" type="button" role="tab" aria-selected="false"
+              aria-controls="view-coverage" data-view="coverage">Coverage</button>
       <button class="viewnav__btn" id="tab-evaluate" type="button" role="tab" aria-selected="false"
               aria-controls="view-evaluate" data-view="evaluate">File</button>
       <button class="viewnav__btn" id="tab-records" type="button" role="tab" aria-selected="false"
@@ -105,6 +107,17 @@
             <p class="field__error" id="auth-error" aria-live="polite" hidden></p>
           </div>
           <button class="btn btn--primary btn--block" type="submit" id="auth-login-btn">Sign In</button>
+          <button class="linkbtn" type="button" id="forgot-password-btn">Forgot Password?</button>
+        </form>
+
+        <form class="form form--auth" id="password-form" hidden>
+          <div class="section__head"><p class="label label--accent">Credential Maintenance</p>
+            <h2 class="section__title">Choose a New Password</h2>
+            <p class="section__meta">Use the password you want for your individual Bureau credentials.</p></div>
+          <div class="field"><label class="field__label" for="new-password">New password</label>
+            <input class="input" id="new-password" type="password" autocomplete="new-password" required /></div>
+          <p class="field__error" id="password-error" hidden></p>
+          <button class="btn btn--primary btn--block" type="submit">Establish Credentials</button>
         </form>
 
         <p class="form__note" id="auth-mode-note"></p>
@@ -125,7 +138,7 @@
 
         <dl class="stats" aria-label="Register statistics">
           <div class="stat"><dt class="stat__label">Certified</dt><dd class="stat__value" data-stat="specimens">0</dd></div>
-          <div class="stat"><dt class="stat__label">Mean Index</dt><dd class="stat__value" data-stat="mean">&mdash;</dd></div>
+          <div class="stat"><dt class="stat__label" id="stat-mean-label">Mean Index</dt><dd class="stat__value" data-stat="mean">&mdash;</dd></div>
           <div class="stat"><dt class="stat__label">Audits Filed</dt><dd class="stat__value" data-stat="audits">0</dd></div>
           <div class="stat"><dt class="stat__label">Pending</dt><dd class="stat__value" data-stat="pending">0</dd></div>
         </dl>
@@ -147,6 +160,7 @@
             <select class="input input--select" id="ranking-basis">
               <option value="overall">Overall</option>
               <option value="burger-quality">Burger Quality</option>
+              <option value="fries">Fries</option>
             </select>
           </div>
           <div class="filters__field">
@@ -169,7 +183,7 @@
         <div class="empty" id="rankings-empty" hidden>
           <p class="empty__stamp">No Data</p>
           <h3 class="empty__title" id="rankings-empty-title">No certified establishments.</h3>
-          <p class="empty__text" id="rankings-empty-text">An establishment enters the Official Rankings once both auditors hold at least one current-schema audit for it. They need not have eaten the same burger, or visited the same branch.</p>
+          <p class="empty__text" id="rankings-empty-text">An establishment enters the Official Rankings once two distinct active auditors hold current-schema audits for it.</p>
         </div>
       </div>
       <div class="actionbar">
@@ -188,7 +202,7 @@
       <div class="shell intro intro--compact">
         <p class="label label--accent">Section III</p>
         <h1 class="intro__title">Pending <span class="accent-rule">Peer Review</span></h1>
-        <p class="intro__sub">Establishments holding a current audit from only one auditor.</p>
+        <p class="intro__sub">Establishments with fewer than two distinct current auditors on file.</p>
       </div>
     </div>
     <div class="band band--light">
@@ -223,10 +237,34 @@
         <div class="empty" id="pending-empty" hidden>
           <p class="empty__stamp">All Clear</p>
           <h3 class="empty__title">No establishments pending.</h3>
-          <p class="empty__text">Every establishment in the register holds a current audit from both auditors. The Office of Auditor Accountability is, briefly, without grievance.</p>
+          <p class="empty__text">Every audited establishment has the two distinct current filings required for ranking. The Office of Auditor Accountability is, briefly, without grievance.</p>
         </div>
       </div>
     </div>
+  </section>
+
+  <section class="view" id="view-coverage" role="tabpanel" aria-labelledby="tab-coverage" tabindex="-1" hidden>
+    <div class="band band--dark"><div class="shell intro intro--compact">
+      <p class="label label--accent">Section III-B</p><h1 class="intro__title">Audit <span class="accent-rule">Coverage</span></h1>
+      <p class="intro__sub">Field-work backlogs by active auditor, whether an establishment is Pending or already ranked.</p>
+    </div></div>
+    <div class="band band--light"><div class="shell section" id="coverage-list"></div></div>
+  </section>
+
+  <section class="view" id="view-personnel" tabindex="-1" hidden>
+    <div class="band band--dark"><div class="shell intro intro--compact">
+      <p class="label label--accent">Administrative File</p><h1 class="intro__title">Bureau <span class="accent-rule">Personnel</span></h1>
+      <p class="intro__sub">Appointments, credentials, and regrettable staffing decisions.</p>
+    </div></div>
+    <div class="band band--light"><div class="shell section">
+      <form class="form" id="invite-form" hidden><div class="section__head"><h2 class="section__title">Invite Auditor</h2></div>
+        <div class="field"><label class="field__label" for="invite-name">Display Name</label><input class="input" id="invite-name" required /></div>
+        <div class="field"><label class="field__label" for="invite-email">Email</label><input class="input" id="invite-email" type="email" required /></div>
+        <p class="field__error" id="invite-error" hidden></p><button class="btn btn--primary btn--block" type="submit">Issue Credentials</button>
+      </form>
+      <div class="section__head section__head--spaced"><h2 class="section__title">Personnel Register</h2></div><div id="personnel-admin-list"></div>
+      <button class="btn btn--outline btn--block" type="button" id="change-password-btn">Change my password</button>
+    </div></div>
   </section>
 
   <!-- ============================================================
@@ -237,7 +275,7 @@
       <div class="shell intro intro--compact">
         <p class="label label--accent" id="eval-form-label">Form BPS&#8209;2</p>
         <h1 class="intro__title" id="eval-title">File an <span class="accent-rule">Audit</span></h1>
-        <p class="intro__sub" id="eval-sub">You file only your own audit. Your peer files theirs independently, at whichever branch and on whichever burger they choose.</p>
+        <p class="intro__sub" id="eval-sub">You file only your own audit. Fellow auditors file independently, at whichever branch and on whichever burger they choose.</p>
       </div>
     </div>
 
@@ -290,7 +328,7 @@
             <input class="input" id="f-burger" name="burger" type="text" list="burger-options"
                    autocomplete="off" enterkeyhint="next" placeholder="e.g. ButterBurger Cheese" />
             <datalist id="burger-options"></datalist>
-            <p class="field__hint" id="hint-burger">You may order the same burger as your peer, or a different one. Both are valid.</p>
+            <p class="field__hint" id="hint-burger">You may order the same burger as another auditor, or a different one. Both are valid.</p>
             <p class="field__error" id="err-burger" hidden>The burger examined is required.</p>
           </div>
 
@@ -306,7 +344,7 @@
                        enterkeyhint="done" placeholder="e.g. Mankato" />
                 <button class="btn btn--outline btn--small" type="button" id="add-location-save">Add</button>
               </div>
-              <p class="field__hint">Added locations are permanent and shared with the other auditor.</p>
+              <p class="field__hint">Added locations are permanent and shared across the Bureau.</p>
             </div>
             <p class="field__error" id="err-location" hidden>A location is required.</p>
           </div>
@@ -377,7 +415,7 @@
         <div class="section__head">
           <p class="label label--accent">Section A</p>
           <h2 class="section__title">Establishment Particulars</h2>
-          <p class="section__meta">Shared record. Either auditor may correct the name or class; neither may touch the other's scores.</p>
+          <p class="section__meta">Shared record. Any active auditor may correct the name or class; nobody may touch another auditor's scores.</p>
         </div>
         <div class="estedit" id="record-edit">
           <div class="field">
@@ -543,6 +581,7 @@
     <p class="footer__line footer__line--mono">Doc. BPS/26/001 &middot; Unclassified &middot; Retain for your records</p>
     <p class="footer__session" id="footer-session" hidden>
       <span id="footer-session-name">Signed in</span>
+      <button class="linkbtn" type="button" data-goto="personnel">Personnel</button>
       <button class="linkbtn" type="button" id="signout-btn">Sign out</button>
     </p>
   </div>
