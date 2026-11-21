@@ -99,13 +99,13 @@
      no floating-point drift, so "weights total 100%" is an exact check.
      THE single source of truth. Nothing else contains a percentage. */
   var SCORING_WEIGHTS = {
-    patty:         25,
-    overallFlavor: 25,
-    bun:           15,
+    patty:         30,
+    overallFlavor: 30,
+    bun:           10,
     fries:         10,
-    value:         10,
-    condiments:     5,
-    service:       10
+    value:          5,
+    condiments:    10,
+    service:        5
   };
 
   var WEIGHT_TOTAL = 100;
@@ -114,12 +114,12 @@
      included categories, divided by their exact source total at calculation
      time. Keeping integer numerators avoids rounding the normalized weights. */
   var BURGER_QUALITY_WEIGHTS = {
-    patty:         25,
-    overallFlavor: 25,
-    bun:           15,
-    condiments:     5
+    patty:         30,
+    overallFlavor: 30,
+    bun:           10,
+    condiments:    10
   };
-  var BURGER_QUALITY_WEIGHT_TOTAL = 70;
+  var BURGER_QUALITY_WEIGHT_TOTAL = 80;
 
   var SCALE = { min: 0, max: 10, step: 0.1, decimals: 1 };
 
